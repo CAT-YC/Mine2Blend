@@ -13,6 +13,10 @@
 
 > ⚠️ 当前为 **0.4.6 内测版**，仅提供 Windows 10 / 11 x64 运行时，欢迎在 Issues 反馈问题。
 
+![Mine2Blend 导入演示](assets/demo-import.gif)
+
+> 🎬 演示：选中 `.litematic` / `.schem` 投影文件，一键导入 Blender 并自动还原方块几何与材质。
+
 ---
 
 ## ✨ 功能特性
