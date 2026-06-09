@@ -1,0 +1,32 @@
+{
+  "name": "mine2blend-converter-packaging-spike",
+  "version": "0.1.0-spike",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "mcblock-litematic-converter": "src/batch-obj-export.mjs"
+  },
+  "scripts": {
+    "smoke:one": "node src/batch-obj-export.mjs import --input samples/MossFarm.litematic --output out/node-one --format obj --metadata-json out/node-one/metadata.json",
+    "smoke:three": "node src/batch-obj-export.mjs import --input samples --output out/node-three --format obj --metadata-json out/node-three/metadata.json",
+    "pack:pkg": "pkg . --targets node20-win-x64 --output dist/mcblock-litematic-converter.exe"
+  },
+  "dependencies": {
+    "deepslate": "^0.25.1",
+    "gl-matrix": "^3.4.3",
+    "sharp": "^0.34.5"
+  },
+  "devDependencies": {
+    "@yao-pkg/pkg": "^6.6.0"
+  },
+  "pkg": {
+    "assets": [
+      "assets/**/*",
+      "node_modules/sharp/**/*",
+      "node_modules/@img/**/*"
+    ],
+    "scripts": [
+      "src/batch-obj-export.mjs"
+    ]
+  }
+}

@@ -1,0 +1,28 @@
+schema_version = "1.0.0"
+
+id = "mcblock_mine2blend"
+version = "0.4.6"
+name = "Mine2Blend"
+tagline = "我的世界投影导入 Blender 工具，支持 Litematic 与 Schematic(.schem)"
+maintainer = "MCBlock"
+type = "add-on"
+website = "https://mcblock.top/blender"
+tags = ["Import-Export"]
+blender_version_min = "4.2.0"
+license = [
+  "SPDX:GPL-3.0-or-later",
+]
+copyright = [
+  "2026 MCBlock",
+]
+
+[permissions]
+files = "读取本地 Litematic 文件、写入 OBJ 缓存并导入到当前 Blender 场景"
+network = "打开 MCBlock 网站、建筑库、网站在线编辑器和插件说明页"
+
+[build]
+paths_exclude_pattern = [
+  "__pycache__/",
+  "/*.zip",
+  "/resources/converter/**/__pycache__/",
+]

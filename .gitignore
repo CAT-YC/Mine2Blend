@@ -1,0 +1,20 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+
+# ---- 打包产物 / Release 附件 ----
+*.zip
+/dist/
+
+# ---- 转换器第三方运行时（不进 git） ----
+# node.exe 自备、node_modules 按 package-lock.json 用 `npm ci` 还原
+resources/converter/win-x64/node.exe
+resources/converter/win-x64/node_modules/
+
+# ---- 临时备份 ----
+*.bak
+*.bak.*
+
+# ---- 系统垃圾 ----
+.DS_Store
+Thumbs.db
