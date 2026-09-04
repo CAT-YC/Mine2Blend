@@ -9,6 +9,46 @@ class Mine2BlendSceneProperties(bpy.types.PropertyGroup):
         subtype="FILE_PATH",
     )
 
+    # ── 导入范围（方案 A：一次解析，按区分子集合）──
+    include_blocks: bpy.props.BoolProperty(
+        name="方块",
+        description="普通方块。取消勾选可以只导入家具和摆件",
+        default=True,
+    )
+
+    include_block_entities: bpy.props.BoolProperty(
+        name="方块实体",
+        description="箱子 / 床 / 告示牌 / 旗帜 / 头颅 / 潜影盒 等带 BlockEntity 的方块",
+        default=True,
+    )
+
+    include_entities: bpy.props.BoolProperty(
+        name="投影自带实体",
+        description="投影文件 Entities 列表里的画 / 物品展示框 / 盔甲架 / 生物",
+        default=True,
+    )
+
+    split_collections: bpy.props.BoolProperty(
+        name="分子集合放置",
+        description="导入后分成 方块 / 方块实体 / 实体 三个子集合，便于单独调材质和渲染",
+        default=True,
+    )
+
+    entity_placeholder_empties: bpy.props.BoolProperty(
+        name="无模型实体建空物体占位",
+        description="内置模型库覆盖 102 类实体；少数没覆盖到的（掉落物、末影水晶等）"
+                    "按原坐标建一个空物体标记位置，方便自己放模型。空物体不参与渲染",
+        default=True,
+    )
+
+    # 数量预览（选完文件由 --probe-only 扫出来，不用等完整导入）
+    probe_blocks: bpy.props.IntProperty(name="方块", default=-1)
+    probe_block_entities: bpy.props.IntProperty(name="方块实体", default=-1)
+    probe_entities: bpy.props.IntProperty(name="自带实体", default=-1)
+    probe_entities_modelled: bpy.props.IntProperty(name="有模型实体", default=-1)
+    probe_entities_placeholder: bpy.props.IntProperty(name="占位实体", default=-1)
+    probe_source_path: bpy.props.StringProperty(name="预览对应文件", default="")
+
     scale_factor: bpy.props.FloatProperty(
         name="导入比例",
         description="导入后整体缩放比例",
@@ -79,6 +119,9 @@ class Mine2BlendSceneProperties(bpy.types.PropertyGroup):
     last_material_issue_count: bpy.props.IntProperty(name="材质风险数", default=0, min=0)
     last_material_audit: bpy.props.StringProperty(name="材质审计", default="")
     last_face_count: bpy.props.IntProperty(name="面数", default=0, min=0)
+    last_entity_summary: bpy.props.StringProperty(name="实体导入结果", default="")
+    last_entity_placeholder_count: bpy.props.IntProperty(name="占位空物体", default=0, min=0)
+    last_unknown_painting_variants: bpy.props.StringProperty(name="未知画尺寸", default="")
     last_converter_version: bpy.props.StringProperty(name="转换器版本", default="")
     last_resource_version: bpy.props.StringProperty(name="资源版本", default="")
     last_log_excerpt: bpy.props.StringProperty(name="最近日志", default="")

@@ -1,0 +1,171 @@
+{
+  "mesh": {
+    "root": {
+      "children": {
+        "head": {
+          "cubes": [
+            {
+              "texCoord": {
+                "u": 0,
+                "v": 0
+              },
+              "origin": [
+                -4,
+                -8,
+                -4
+              ],
+              "dimensions": [
+                8,
+                8,
+                8
+              ]
+            }
+          ]
+        },
+        "right_arm": {
+          "cubes": [
+            {
+              "texCoord": {
+                "u": 40,
+                "v": 16
+              },
+              "origin": [
+                -3,
+                -2,
+                -2
+              ],
+              "dimensions": [
+                4,
+                12,
+                4
+              ]
+            }
+          ],
+          "partPose": {
+            "x": -5,
+            "y": 2
+          }
+        },
+        "left_leg": {
+          "cubes": [
+            {
+              "mirror": true,
+              "texCoord": {
+                "u": 0,
+                "v": 16
+              },
+              "origin": [
+                -2,
+                0,
+                -2
+              ],
+              "dimensions": [
+                4,
+                12,
+                4
+              ]
+            }
+          ],
+          "partPose": {
+            "x": 1.9,
+            "y": 12
+          }
+        },
+        "left_arm": {
+          "cubes": [
+            {
+              "mirror": true,
+              "texCoord": {
+                "u": 40,
+                "v": 16
+              },
+              "origin": [
+                -1,
+                -2,
+                -2
+              ],
+              "dimensions": [
+                4,
+                12,
+                4
+              ]
+            }
+          ],
+          "partPose": {
+            "x": 5,
+            "y": 2
+          }
+        },
+        "right_leg": {
+          "cubes": [
+            {
+              "texCoord": {
+                "u": 0,
+                "v": 16
+              },
+              "origin": [
+                -2,
+                0,
+                -2
+              ],
+              "dimensions": [
+                4,
+                12,
+                4
+              ]
+            }
+          ],
+          "partPose": {
+            "x": -1.9,
+            "y": 12
+          }
+        },
+        "hat": {
+          "cubes": [
+            {
+              "texCoord": {
+                "u": 32,
+                "v": 0
+              },
+              "origin": [
+                -4,
+                -8,
+                -4
+              ],
+              "dimensions": [
+                8,
+                8,
+                8
+              ],
+              "grow": 0.5
+            }
+          ]
+        },
+        "body": {
+          "cubes": [
+            {
+              "texCoord": {
+                "u": 16,
+                "v": 16
+              },
+              "origin": [
+                -4,
+                0,
+                -2
+              ],
+              "dimensions": [
+                8,
+                12,
+                4
+              ]
+            }
+          ]
+        }
+      }
+    }
+  },
+  "material": {
+    "xTexSize": 64,
+    "yTexSize": 64
+  }
+}

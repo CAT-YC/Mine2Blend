@@ -1,0 +1,448 @@
+{
+  "minecraft:acacia_boat": {
+    "model": "boat.json",
+    "texture": "minecraft:entity/boat/acacia"
+  },
+  "minecraft:acacia_chest_boat": {
+    "model": "chest_boat.json",
+    "texture": "minecraft:entity/chest_boat/acacia"
+  },
+  "minecraft:allay": {
+    "model": "allay.json",
+    "texture": "minecraft:entity/allay/allay"
+  },
+  "minecraft:armor_stand": {
+    "model": "armor_stand.json",
+    "texture": "minecraft:entity/armorstand/armorstand"
+  },
+  "minecraft:axolotl": {
+    "model": "axolotl.json",
+    "texture": "minecraft:entity/axolotl/axolotl_lucy"
+  },
+  "minecraft:bamboo_chest_raft": {
+    "model": "chest_boat.json",
+    "texture": "minecraft:entity/chest_boat/bamboo"
+  },
+  "minecraft:bamboo_raft": {
+    "model": "boat.json",
+    "texture": "minecraft:entity/boat/bamboo"
+  },
+  "minecraft:bee": {
+    "model": "bee.json",
+    "texture": "minecraft:entity/bee/bee"
+  },
+  "minecraft:birch_boat": {
+    "model": "boat.json",
+    "texture": "minecraft:entity/boat/birch"
+  },
+  "minecraft:birch_chest_boat": {
+    "model": "chest_boat.json",
+    "texture": "minecraft:entity/chest_boat/birch"
+  },
+  "minecraft:blaze": {
+    "model": "blaze.json",
+    "texture": "minecraft:entity/blaze/blaze"
+  },
+  "minecraft:boat": {
+    "model": "boat.json",
+    "texture": "minecraft:entity/boat/oak"
+  },
+  "minecraft:cat": {
+    "model": "cat.json",
+    "texture": "minecraft:entity/cat/cat_tabby"
+  },
+  "minecraft:cave_spider": {
+    "model": "cave_spider.json",
+    "texture": "minecraft:entity/spider/cave_spider"
+  },
+  "minecraft:cherry_boat": {
+    "model": "boat.json",
+    "texture": "minecraft:entity/boat/cherry"
+  },
+  "minecraft:cherry_chest_boat": {
+    "model": "chest_boat.json",
+    "texture": "minecraft:entity/chest_boat/cherry"
+  },
+  "minecraft:chest_boat": {
+    "model": "chest_boat.json",
+    "texture": "minecraft:entity/chest_boat/oak"
+  },
+  "minecraft:chest_minecart": {
+    "model": "minecart.json",
+    "texture": "minecraft:entity/minecart/minecart"
+  },
+  "minecraft:chicken": {
+    "model": "chicken.json",
+    "texture": "minecraft:entity/chicken/chicken_temperate"
+  },
+  "minecraft:cod": {
+    "model": "cod.json",
+    "texture": "minecraft:entity/fish/cod"
+  },
+  "minecraft:command_block_minecart": {
+    "model": "minecart.json",
+    "texture": "minecraft:entity/minecart/minecart"
+  },
+  "minecraft:cow": {
+    "model": "cow.json",
+    "texture": "minecraft:entity/cow/cow_temperate"
+  },
+  "minecraft:creeper": {
+    "model": "creeper.json",
+    "texture": "minecraft:entity/creeper/creeper"
+  },
+  "minecraft:dark_oak_boat": {
+    "model": "boat.json",
+    "texture": "minecraft:entity/boat/dark_oak"
+  },
+  "minecraft:dark_oak_chest_boat": {
+    "model": "chest_boat.json",
+    "texture": "minecraft:entity/chest_boat/dark_oak"
+  },
+  "minecraft:dolphin": {
+    "model": "dolphin.json",
+    "texture": "minecraft:entity/dolphin/dolphin"
+  },
+  "minecraft:donkey": {
+    "model": "donkey.json",
+    "texture": "minecraft:entity/horse/donkey"
+  },
+  "minecraft:drowned": {
+    "model": "drowned.json",
+    "texture": "minecraft:entity/zombie/drowned",
+    "overlays": [
+      {
+        "model": "drowned_outer.json",
+        "texture": "minecraft:entity/zombie/drowned_outer_layer"
+      }
+    ]
+  },
+  "minecraft:elder_guardian": {
+    "model": "elder_guardian.json",
+    "texture": "minecraft:entity/guardian/guardian_elder"
+  },
+  "minecraft:ender_dragon": {
+    "model": "ender_dragon.json",
+    "texture": "minecraft:entity/enderdragon/dragon"
+  },
+  "minecraft:enderman": {
+    "model": "enderman.json",
+    "texture": "minecraft:entity/enderman/enderman"
+  },
+  "minecraft:endermite": {
+    "model": "endermite.json",
+    "texture": "minecraft:entity/endermite/endermite"
+  },
+  "minecraft:evoker": {
+    "model": "evoker.json",
+    "texture": "minecraft:entity/illager/evoker"
+  },
+  "minecraft:fox": {
+    "model": "fox.json",
+    "texture": "minecraft:entity/fox/fox"
+  },
+  "minecraft:frog": {
+    "model": "frog.json",
+    "texture": "minecraft:entity/frog/frog_temperate"
+  },
+  "minecraft:furnace_minecart": {
+    "model": "minecart.json",
+    "texture": "minecraft:entity/minecart/minecart"
+  },
+  "minecraft:giant": {
+    "model": "giant.json",
+    "texture": "minecraft:entity/zombie/zombie"
+  },
+  "minecraft:glow_squid": {
+    "model": "glow_squid.json",
+    "texture": "minecraft:entity/squid/glow_squid"
+  },
+  "minecraft:goat": {
+    "model": "goat.json",
+    "texture": "minecraft:entity/goat/goat"
+  },
+  "minecraft:guardian": {
+    "model": "guardian.json",
+    "texture": "minecraft:entity/guardian/guardian"
+  },
+  "minecraft:hoglin": {
+    "model": "hoglin.json",
+    "texture": "minecraft:entity/hoglin/hoglin"
+  },
+  "minecraft:hopper_minecart": {
+    "model": "minecart.json",
+    "texture": "minecraft:entity/minecart/minecart"
+  },
+  "minecraft:horse": {
+    "model": "horse.json",
+    "texture": "minecraft:entity/horse/horse_white"
+  },
+  "minecraft:husk": {
+    "model": "husk.json",
+    "texture": "minecraft:entity/zombie/husk"
+  },
+  "minecraft:illusioner": {
+    "model": "illusioner.json",
+    "texture": "minecraft:entity/illager/illusioner"
+  },
+  "minecraft:iron_golem": {
+    "model": "iron_golem.json",
+    "texture": "minecraft:entity/iron_golem/iron_golem"
+  },
+  "minecraft:jungle_boat": {
+    "model": "boat.json",
+    "texture": "minecraft:entity/boat/jungle"
+  },
+  "minecraft:jungle_chest_boat": {
+    "model": "chest_boat.json",
+    "texture": "minecraft:entity/chest_boat/jungle"
+  },
+  "minecraft:leash_knot": {
+    "model": "lead_knot.json",
+    "texture": "minecraft:entity/lead_knot/lead_knot"
+  },
+  "minecraft:llama": {
+    "model": "llama.json",
+    "texture": "minecraft:entity/llama/llama_creamy"
+  },
+  "minecraft:mangrove_boat": {
+    "model": "boat.json",
+    "texture": "minecraft:entity/boat/mangrove"
+  },
+  "minecraft:mangrove_chest_boat": {
+    "model": "chest_boat.json",
+    "texture": "minecraft:entity/chest_boat/mangrove"
+  },
+  "minecraft:minecart": {
+    "model": "minecart.json",
+    "texture": "minecraft:entity/minecart/minecart"
+  },
+  "minecraft:mooshroom": {
+    "model": "mooshroom.json",
+    "texture": "minecraft:entity/cow/mooshroom_red"
+  },
+  "minecraft:mule": {
+    "model": "mule.json",
+    "texture": "minecraft:entity/horse/mule"
+  },
+  "minecraft:oak_boat": {
+    "model": "boat.json",
+    "texture": "minecraft:entity/boat/acacia"
+  },
+  "minecraft:oak_chest_boat": {
+    "model": "chest_boat.json",
+    "texture": "minecraft:entity/chest_boat/acacia"
+  },
+  "minecraft:ocelot": {
+    "model": "ocelot.json",
+    "texture": "minecraft:entity/cat/ocelot"
+  },
+  "minecraft:pale_oak_boat": {
+    "model": "boat.json",
+    "texture": "minecraft:entity/boat/pale_oak"
+  },
+  "minecraft:pale_oak_chest_boat": {
+    "model": "chest_boat.json",
+    "texture": "minecraft:entity/chest_boat/pale_oak"
+  },
+  "minecraft:panda": {
+    "model": "panda.json",
+    "texture": "minecraft:entity/panda/panda"
+  },
+  "minecraft:parrot": {
+    "model": "parrot.json",
+    "texture": "minecraft:entity/parrot/parrot_red_blue"
+  },
+  "minecraft:phantom": {
+    "model": "phantom.json",
+    "texture": "minecraft:entity/phantom/phantom"
+  },
+  "minecraft:pig": {
+    "model": "pig.json",
+    "texture": "minecraft:entity/pig/pig_temperate"
+  },
+  "minecraft:piglin": {
+    "model": "piglin.json",
+    "texture": "minecraft:entity/piglin/piglin"
+  },
+  "minecraft:piglin_brute": {
+    "model": "piglin_brute.json",
+    "texture": "minecraft:entity/piglin/piglin_brute"
+  },
+  "minecraft:pillager": {
+    "model": "pillager.json",
+    "texture": "minecraft:entity/illager/pillager"
+  },
+  "minecraft:polar_bear": {
+    "model": "polar_bear.json",
+    "texture": "minecraft:entity/bear/polarbear"
+  },
+  "minecraft:pufferfish": {
+    "model": "pufferfish_small.json",
+    "texture": "minecraft:entity/fish/pufferfish"
+  },
+  "minecraft:rabbit": {
+    "model": "rabbit.json",
+    "texture": "minecraft:entity/rabbit/rabbit_brown"
+  },
+  "minecraft:ravager": {
+    "model": "ravager.json",
+    "texture": "minecraft:entity/illager/ravager"
+  },
+  "minecraft:salmon": {
+    "model": "salmon.json",
+    "texture": "minecraft:entity/fish/salmon"
+  },
+  "minecraft:sheep": {
+    "model": "sheep.json",
+    "texture": "minecraft:entity/sheep/sheep",
+    "overlays": [
+      {
+        "model": "sheep_fur.json",
+        "texture": "minecraft:entity/sheep/sheep_wool"
+      }
+    ]
+  },
+  "minecraft:shulker": {
+    "model": "shulker.json",
+    "texture": "minecraft:entity/shulker/shulker"
+  },
+  "minecraft:silverfish": {
+    "model": "silverfish.json",
+    "texture": "minecraft:entity/silverfish/silverfish"
+  },
+  "minecraft:skeleton": {
+    "model": "skeleton.json",
+    "texture": "minecraft:entity/skeleton/skeleton"
+  },
+  "minecraft:skeleton_horse": {
+    "model": "skeleton_horse.json",
+    "texture": "minecraft:entity/horse/horse_skeleton"
+  },
+  "minecraft:slime": {
+    "model": "slime.json",
+    "texture": "minecraft:entity/slime/slime",
+    "overlays": [
+      {
+        "model": "slime_outer.json",
+        "texture": "minecraft:entity/slime/slime"
+      }
+    ]
+  },
+  "minecraft:snow_golem": {
+    "model": "snow_golem.json",
+    "texture": "minecraft:entity/snow_golem/snow_golem"
+  },
+  "minecraft:spawner_minecart": {
+    "model": "minecart.json",
+    "texture": "minecraft:entity/minecart/minecart"
+  },
+  "minecraft:spider": {
+    "model": "spider.json",
+    "texture": "minecraft:entity/spider/spider"
+  },
+  "minecraft:spruce_boat": {
+    "model": "boat.json",
+    "texture": "minecraft:entity/boat/spruce"
+  },
+  "minecraft:spruce_chest_boat": {
+    "model": "chest_boat.json",
+    "texture": "minecraft:entity/chest_boat/spruce"
+  },
+  "minecraft:squid": {
+    "model": "squid.json",
+    "texture": "minecraft:entity/squid/squid"
+  },
+  "minecraft:stray": {
+    "model": "stray.json",
+    "texture": "minecraft:entity/skeleton/stray",
+    "overlays": [
+      {
+        "model": "stray_outer.json",
+        "texture": "minecraft:entity/skeleton/stray_overlay"
+      }
+    ]
+  },
+  "minecraft:strider": {
+    "model": "strider.json",
+    "texture": "minecraft:entity/strider/strider"
+  },
+  "minecraft:tadpole": {
+    "model": "tadpole.json",
+    "texture": "minecraft:entity/tadpole/tadpole"
+  },
+  "minecraft:tnt_minecart": {
+    "model": "minecart.json",
+    "texture": "minecraft:entity/minecart/minecart"
+  },
+  "minecraft:trader_llama": {
+    "model": "trader_llama.json",
+    "texture": "minecraft:entity/llama/llama_creamy",
+    "overlays": [
+      {
+        "model": "llama_decor.json",
+        "texture": "minecraft:entity/equipment/llama_body/trader_llama"
+      }
+    ]
+  },
+  "minecraft:tropical_fish": {
+    "model": "tropical_fish_small.json",
+    "texture": "minecraft:entity/fish/tropical_a"
+  },
+  "minecraft:turtle": {
+    "model": "turtle.json",
+    "texture": "minecraft:entity/turtle/turtle"
+  },
+  "minecraft:villager": {
+    "model": "villager.json",
+    "texture": "minecraft:entity/villager/villager"
+  },
+  "minecraft:vindicator": {
+    "model": "vindicator.json",
+    "texture": "minecraft:entity/illager/vindicator"
+  },
+  "minecraft:wandering_trader": {
+    "model": "wandering_trader.json",
+    "texture": "minecraft:entity/wandering_trader/wandering_trader"
+  },
+  "minecraft:warden": {
+    "model": "warden.json",
+    "texture": "minecraft:entity/warden/warden"
+  },
+  "minecraft:witch": {
+    "model": "witch.json",
+    "texture": "minecraft:entity/witch/witch"
+  },
+  "minecraft:wither": {
+    "model": "wither.json",
+    "texture": "minecraft:entity/wither/wither"
+  },
+  "minecraft:wither_skeleton": {
+    "model": "wither_skeleton.json",
+    "texture": "minecraft:entity/skeleton/wither_skeleton"
+  },
+  "minecraft:wolf": {
+    "model": "wolf.json",
+    "texture": "minecraft:entity/wolf/wolf"
+  },
+  "minecraft:zoglin": {
+    "model": "zoglin.json",
+    "texture": "minecraft:entity/hoglin/zoglin"
+  },
+  "minecraft:zombie": {
+    "model": "zombie.json",
+    "texture": "minecraft:entity/zombie/zombie"
+  },
+  "minecraft:zombie_horse": {
+    "model": "zombie_horse.json",
+    "texture": "minecraft:entity/horse/horse_zombie"
+  },
+  "minecraft:zombie_villager": {
+    "model": "zombie_villager.json",
+    "texture": "minecraft:entity/zombie_villager/zombie_villager"
+  },
+  "minecraft:zombified_piglin": {
+    "model": "zombified_piglin.json",
+    "texture": "minecraft:entity/piglin/zombified_piglin"
+  }
+}

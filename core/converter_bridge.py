@@ -167,7 +167,88 @@ def _safe_reset_output_dir(output_dir: str, cache_root: str) -> None:
     os.makedirs(output_dir, exist_ok=True)
 
 
-def run_litematic_converter(litematic_path: str, context=None, timeout: int = 900) -> ConverterResult:
+SECTION_BLOCKS = "blocks"
+SECTION_BLOCK_ENTITIES = "block-entities"
+SECTION_ENTITIES = "entities"
+
+
+def sections_from_settings(settings) -> List[str]:
+    """把面板上的三个勾选转成转换器的 --include 值。"""
+    sections: List[str] = []
+    if getattr(settings, "include_blocks", True):
+        sections.append(SECTION_BLOCKS)
+    if getattr(settings, "include_block_entities", True):
+        sections.append(SECTION_BLOCK_ENTITIES)
+    if getattr(settings, "include_entities", True):
+        sections.append(SECTION_ENTITIES)
+    return sections
+
+
+def probe_projection(litematic_path: str, context=None, timeout: int = 120) -> Dict[str, object]:
+    """
+    只扫描不导出，拿三类数量给面板做预览。
+    走完整解析但跳过几何与序列化，18000 方块的样本约 0.2 秒。
+    """
+    if not litematic_path or not os.path.isfile(litematic_path):
+        raise ConverterError("投影文件不存在，请重新选择 .litematic / .schem 文件")
+
+    status = get_converter_status(context)
+    if not status.ready:
+        raise ConverterError(status.message)
+
+    cache_root = path_utils.get_cache_root(context)
+    probe_dir = os.path.join(cache_root, "_probe")
+    os.makedirs(probe_dir, exist_ok=True)
+    metadata_path = os.path.join(probe_dir, "probe.json")
+
+    cmd = [
+        status.executable_path,
+        "import",
+        "--input",
+        os.path.abspath(litematic_path),
+        "--output",
+        probe_dir,
+        "--format",
+        "obj",
+        "--metadata-json",
+        metadata_path,
+        "--probe-only",
+    ]
+
+    try:
+        completed = subprocess.run(
+            cmd,
+            capture_output=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=timeout,
+            cwd=status.resource_dir or None,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise ConverterError(f"扫描超时（{timeout} 秒）：{exc}")
+    except OSError as exc:
+        raise ConverterError(f"无法启动转换器：{exc}")
+
+    if completed.returncode != 0:
+        tail = (completed.stderr or completed.stdout or "")[-500:] or "无日志输出"
+        raise ConverterError(f"扫描失败（退出码 {completed.returncode}）：\n{tail}")
+
+    data = _load_metadata(metadata_path)
+    probes = data.get("probes")
+    if not isinstance(probes, list) or not probes:
+        raise ConverterError("扫描没有返回结果，请查看诊断日志")
+    first = probes[0]
+    if isinstance(first, dict) and first.get("error"):
+        raise ConverterError(f"解析失败：{first['error']}")
+    return first if isinstance(first, dict) else {}
+
+
+def run_litematic_converter(
+    litematic_path: str,
+    context=None,
+    timeout: int = 900,
+    sections: Optional[List[str]] = None,
+) -> ConverterResult:
     if not litematic_path or not os.path.isfile(litematic_path):
         raise ConverterError("投影文件不存在，请重新选择 .litematic / .schem 文件")
     if not litematic_path.lower().endswith((".litematic", ".schem")):
@@ -195,6 +276,10 @@ def run_litematic_converter(litematic_path: str, context=None, timeout: int = 90
         metadata_path,
         "--preserve-adjacent-faces",
     ]
+    if sections is not None:
+        if not sections:
+            raise ConverterError("导入内容至少要勾选一项")
+        cmd.extend(["--include", ",".join(sections)])
 
     try:
         completed = subprocess.run(

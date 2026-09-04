@@ -21,6 +21,35 @@ def _fail(settings, category: str, message: str) -> None:
     settings.last_error = message
 
 
+def _reset_probe(settings) -> None:
+    settings.probe_blocks = -1
+    settings.probe_block_entities = -1
+    settings.probe_entities = -1
+    settings.probe_entities_modelled = -1
+    settings.probe_entities_placeholder = -1
+    settings.probe_source_path = ""
+
+
+def _run_probe(context, settings, source_path: str) -> bool:
+    """扫描三类数量填进面板。失败不算错误，只是不显示预览。"""
+    try:
+        probe = converter_bridge.probe_projection(source_path, context)
+    except converter_bridge.ConverterError:
+        _reset_probe(settings)
+        return False
+    counts = probe.get("counts") if isinstance(probe, dict) else None
+    if not isinstance(counts, dict):
+        _reset_probe(settings)
+        return False
+    settings.probe_blocks = int(counts.get("blocks", 0))
+    settings.probe_block_entities = int(counts.get("blockEntities", 0))
+    settings.probe_entities = int(counts.get("entities", 0))
+    settings.probe_entities_modelled = int(counts.get("entitiesModelled", 0))
+    settings.probe_entities_placeholder = int(counts.get("entitiesPlaceholder", 0))
+    settings.probe_source_path = source_path
+    return True
+
+
 class MINE2BLEND_OT_choose_litematic(bpy.types.Operator, ImportHelper):
     bl_idname = "mine2blend.choose_litematic"
     bl_label = "选择投影文件"
@@ -34,7 +63,34 @@ class MINE2BLEND_OT_choose_litematic(bpy.types.Operator, ImportHelper):
         settings.projection_path = self.filepath
         settings.last_error = ""
         settings.last_error_category = ""
+        # 顺手扫一遍数量，面板上直接显示三类各有多少（约 0.2 秒，不用等完整导入）
+        _run_probe(context, settings, self.filepath)
         settings.last_message = f"已选择：{os.path.basename(self.filepath)}"
+        self.report({"INFO"}, settings.last_message)
+        return {"FINISHED"}
+
+
+class MINE2BLEND_OT_probe_projection(bpy.types.Operator):
+    bl_idname = "mine2blend.probe_projection"
+    bl_label = "刷新数量"
+    bl_description = "扫描投影文件，统计方块 / 方块实体 / 自带实体各有多少（不导入）"
+
+    def execute(self, context):
+        settings = context.scene.mine2blend
+        source_path = (settings.projection_path or "").strip()
+        if not source_path or not os.path.isfile(source_path):
+            _fail(settings, "文件校验失败", "请先选择 .litematic / .schem 文件")
+            self.report({"ERROR"}, settings.last_error)
+            return {"CANCELLED"}
+        if not _run_probe(context, settings, source_path):
+            _fail(settings, "扫描失败", "扫描失败，请查看诊断日志")
+            self.report({"ERROR"}, settings.last_error)
+            return {"CANCELLED"}
+        settings.last_error = ""
+        settings.last_message = (
+            f"方块 {settings.probe_blocks} · 方块实体 {settings.probe_block_entities} "
+            f"· 自带实体 {settings.probe_entities}"
+        )
         self.report({"INFO"}, settings.last_message)
         return {"FINISHED"}
 
@@ -76,10 +132,22 @@ class MINE2BLEND_OT_import_litematic(bpy.types.Operator):
         except Exception:
             pass
 
+        sections = converter_bridge.sections_from_settings(settings)
+        if not sections:
+            _fail(settings, "导入范围为空", "「导入内容」至少要勾选一项")
+            try:
+                context.window_manager.progress_end()
+            except Exception:
+                pass
+            self.report({"ERROR"}, settings.last_error)
+            return {"CANCELLED"}
+
         try:
             _set_progress(context, "转换 Litematic", 15)
             conversion_start = time.perf_counter()
-            converter_result = converter_bridge.run_litematic_converter(source_path, context)
+            converter_result = converter_bridge.run_litematic_converter(
+                source_path, context, sections=sections
+            )
             settings.last_conversion_seconds = time.perf_counter() - conversion_start
         except converter_bridge.ConverterError as exc:
             _fail(settings, "转换失败", str(exc))
@@ -101,6 +169,7 @@ class MINE2BLEND_OT_import_litematic(bpy.types.Operator):
         try:
             _set_progress(context, "导入 OBJ 到 Blender", 60)
             import_start = time.perf_counter()
+            placeholders = converter_result.metadata.get("entityPlaceholders")
             import_result = blender_importer.import_obj_file(
                 converter_result.obj_path,
                 collection_name=collection_name,
@@ -108,6 +177,13 @@ class MINE2BLEND_OT_import_litematic(bpy.types.Operator):
                 center_model=settings.center_model,
                 place_on_ground=settings.place_on_ground,
                 parent_name=settings.collection_prefix,
+                split_collections=settings.split_collections,
+                entity_placeholders=(
+                    placeholders
+                    if settings.include_entities and settings.entity_placeholder_empties
+                       and isinstance(placeholders, list)
+                    else None
+                ),
             )
             settings.last_import_seconds = time.perf_counter() - import_start
         except blender_importer.ImporterError as exc:
@@ -125,9 +201,10 @@ class MINE2BLEND_OT_import_litematic(bpy.types.Operator):
             existing_objects = blender_importer.mine2blend_objects_excluding(
                 settings.collection_prefix, collection_name
             )
-            blender_importer.arrange_beside_existing(
-                import_result.get("objects", []), existing_objects
-            )
+            # 占位空物体要跟着一起平移，否则并排第二个建筑时它们会留在第一个建筑那边
+            movable = list(import_result.get("objects", []))
+            movable.extend(import_result.get("placeholders", []))
+            blender_importer.arrange_beside_existing(movable, existing_objects)
 
         _set_progress(context, "整理诊断信息", 85)
         metadata = converter_result.metadata
@@ -148,6 +225,18 @@ class MINE2BLEND_OT_import_litematic(bpy.types.Operator):
         settings.last_performance_warning = diagnostics.performance_warning(
             settings.last_block_count,
             settings.last_face_count,
+        )
+        entity_counts = metadata.get("entityCounts")
+        if isinstance(entity_counts, dict) and entity_counts:
+            settings.last_entity_summary = " ".join(
+                f"{name}×{count}" for name, count in entity_counts.items()
+            )
+        else:
+            settings.last_entity_summary = ""
+        settings.last_entity_placeholder_count = import_result.get("placeholder_count", 0)
+        unknown_variants = metadata.get("unknownPaintingVariants")
+        settings.last_unknown_painting_variants = (
+            ", ".join(unknown_variants) if isinstance(unknown_variants, list) and unknown_variants else ""
         )
         settings.last_converter_version = str(metadata.get("converterVersion") or "")
         settings.last_resource_version = str(metadata.get("resourceVersion") or "")
@@ -224,6 +313,7 @@ class MINE2BLEND_OT_delete_projection(bpy.types.Operator):
 
 _CLASSES = (
     MINE2BLEND_OT_choose_litematic,
+    MINE2BLEND_OT_probe_projection,
     MINE2BLEND_OT_import_litematic,
     MINE2BLEND_OT_clear_imports,
     MINE2BLEND_OT_delete_projection,

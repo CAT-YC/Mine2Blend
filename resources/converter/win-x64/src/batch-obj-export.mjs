@@ -22,8 +22,10 @@ import {
   Quad,
   Vertex,
   Vector,
+  SpecialRenderers,
 } from 'deepslate'
 import { mat4 } from 'gl-matrix'
+import { initEntityModels, createEntityModelMesh, hasEntityModel } from './entity-model.mjs'
 
 // ─── 配置 ───────────────────────────────────────────────
 const __filename = fileURLToPath(import.meta.url)
@@ -33,6 +35,9 @@ const RESOURCE_VERSION = 'mcmeta-2026-02-26-copy'
 const MCMETA_DIR = process.env.MCBLOCK_MCMETA_DIR
   ? path.resolve(process.env.MCBLOCK_MCMETA_DIR)
   : path.resolve(__dirname, '..', 'assets', 'mcmeta')
+const ENTITY_MODEL_DIR = process.env.MCBLOCK_ENTITY_MODEL_DIR
+  ? path.resolve(process.env.MCBLOCK_ENTITY_MODEL_DIR)
+  : path.resolve(__dirname, '..', 'assets', 'entity-models')
 
 const SKIP_BLOCK_IDS = new Set([
   'minecraft:air', 'minecraft:cave_air', 'minecraft:void_air',
@@ -115,6 +120,77 @@ const BLOCK_DEF_ALIASES = {
   'minecraft:skull': 'minecraft:skeleton_skull',
   'minecraft:wall_skull': 'minecraft:skeleton_wall_skull',
 }
+
+// ─── 导入分区（方案 A：一次解析，按区分子集合）─────────────
+//
+// OBJ 里用 `o` 语句分成三个对象，Blender 侧据此放进三个子集合。
+// 材质名同时带前缀，作为 `o` 分割失效时的兜底判据。
+const SECTION_BLOCKS = 'blocks'
+const SECTION_BLOCK_ENTITIES = 'blockEntities'
+const SECTION_ENTITIES = 'entities'
+const SECTION_OBJECT_NAMES = {
+  [SECTION_BLOCKS]: 'Blocks',
+  [SECTION_BLOCK_ENTITIES]: 'BlockEntities',
+  [SECTION_ENTITIES]: 'Entities',
+}
+const ALL_SECTIONS = [SECTION_BLOCKS, SECTION_BLOCK_ENTITIES, SECTION_ENTITIES]
+
+// MC 里带 BlockEntity 的方块。按 id 判定而不是按「有没有 TileEntities 记录」，
+// 因为空箱子之类在部分导出工具里不写 NBT，按记录判会漏。
+const BLOCK_ENTITY_EXACT = new Set([
+  'chest', 'trapped_chest', 'ender_chest', 'barrel',
+  'furnace', 'blast_furnace', 'smoker',
+  'dispenser', 'dropper', 'hopper', 'jukebox', 'lectern',
+  'brewing_stand', 'enchanting_table', 'beacon', 'conduit',
+  'bell', 'beehive', 'bee_nest',
+  'spawner', 'trial_spawner', 'vault', 'crafter',
+  'comparator', 'daylight_detector',
+  'structure_block', 'jigsaw',
+  'command_block', 'chain_command_block', 'repeating_command_block',
+  'end_portal', 'end_gateway',
+  'sculk_sensor', 'calibrated_sculk_sensor', 'sculk_catalyst', 'sculk_shrieker',
+  'chiseled_bookshelf', 'decorated_pot', 'creaking_heart',
+  'suspicious_sand', 'suspicious_gravel',
+  'moving_piston',
+  'skull', 'wall_skull',
+])
+const BLOCK_ENTITY_PATTERNS = [
+  /(^|_)sign$/, /(^|_)wall_sign$/, /(^|_)hanging_sign$/, /(^|_)wall_hanging_sign$/,
+  /(^|_)banner$/, /(^|_)wall_banner$/,
+  /(^|_)bed$/,
+  /(^|_)shulker_box$/,
+  /(^|_)skull$/, /(^|_)head$/,
+  /(^|_)campfire$/,
+]
+
+/** 自建几何的实体（不走 vendored 生物模型那套） */
+const BUILTIN_ENTITY_MESHES = new Set(['painting', 'item_frame', 'glow_item_frame'])
+
+/** 这个实体能不能出真几何（自建的 + vendored 生物模型库里的） */
+function entityHasModel(entityId) {
+  const bare = entityId.replace('minecraft:', '')
+  return BUILTIN_ENTITY_MESHES.has(bare) || hasEntityModel(entityId)
+}
+
+function isBlockEntityId(blockId) {
+  const name = blockId.replace('minecraft:', '')
+  // piston_head 会被 /_head$/ 命中，但它是普通方块不是 BlockEntity
+  if (name === 'piston_head') return false
+  if (BLOCK_ENTITY_EXACT.has(name)) return true
+  return BLOCK_ENTITY_PATTERNS.some(re => re.test(name))
+}
+
+// 头颅是 special renderer 方块：blockstate model 只有 particle，走 deepslate 的 headRenderer。
+// 与网站 lib/renderer/geometry-utils.ts 的 SKULL_BLOCK_IDS 保持同一份清单。
+const SKULL_BLOCK_IDS = new Set([
+  'skeleton_skull', 'skeleton_wall_skull',
+  'wither_skeleton_skull', 'wither_skeleton_wall_skull',
+  'zombie_head', 'zombie_wall_head',
+  'creeper_head', 'creeper_wall_head',
+  'player_head', 'player_wall_head',
+  'piglin_head', 'piglin_wall_head',
+  'dragon_head', 'dragon_wall_head',
+])
 
 const ENTITY_BLOCK_COLORS = {
   chest: [0.6, 0.4, 0.2],
@@ -624,6 +700,7 @@ function parseLitematic(buffer, fileName) {
   if (regionNames.length === 0) throw new Error('No regions found')
 
   const allBlocks = []
+  const allEntities = []
   let gMinX = Infinity, gMinY = Infinity, gMinZ = Infinity
   let gMaxX = -Infinity, gMaxY = -Infinity, gMaxZ = -Infinity
 
@@ -639,6 +716,7 @@ function parseLitematic(buffer, fileName) {
     const oY = rawSY < 0 ? pY + rawSY + 1 : pY
     const oZ = rawSZ < 0 ? pZ + rawSZ + 1 : pZ
     const bannerRenderDataByWorldPos = collectLitematicBannerRenderData(region, [oX, oY, oZ])
+    allEntities.push(...collectLitematicEntities(region, [pX, pY, pZ]))
 
     const paletteList = region.getList('BlockStatePalette', 10)
     const palette = []
@@ -689,6 +767,11 @@ function parseLitematic(buffer, fileName) {
     for (const b of allBlocks) {
       b.position[0] -= gMinX; b.position[1] -= gMinY; b.position[2] -= gMinZ
     }
+    // 实体坐标是浮点世界坐标，按同一原点平移才能和方块对齐
+    for (const e of allEntities) {
+      e.pos[0] -= gMinX; e.pos[1] -= gMinY; e.pos[2] -= gMinZ
+      if (e.tile) { e.tile[0] -= gMinX; e.tile[1] -= gMinY; e.tile[2] -= gMinZ }
+    }
   }
 
   return {
@@ -697,6 +780,7 @@ function parseLitematic(buffer, fileName) {
       ? [gMaxX - gMinX + 1, gMaxY - gMinY + 1, gMaxZ - gMinZ + 1]
       : [0, 0, 0],
     blocks: allBlocks,
+    entities: allEntities,
     totalBlockCount: allBlocks.length,
   }
 }
@@ -1115,17 +1199,109 @@ function createBannerMesh(blockId, properties = {}, atlas = null) {
 }
 
 function computeBannerRotationDeg(isWall, properties) {
-  if (isWall) {
-    switch (properties.facing ?? 'south') {
-      case 'south': return 0
-      case 'east': return 90
-      case 'north': return 180
-      case 'west': return 270
-      default: return 0
-    }
+  return isWall
+    ? computeWallDecorationRotationDeg(properties.facing)
+    : computeStandingDecorationRotationDeg(properties.rotation)
+}
+
+/** 贴墙装饰的正面朝向映射（banner / skull 共用）。基准姿态正面朝 +Z(south)。 */
+function computeWallDecorationRotationDeg(facing) {
+  switch (facing ?? 'south') {
+    case 'south': return 0
+    case 'east': return 90
+    case 'north': return 180
+    case 'west': return 270
+    default: return 0
   }
-  const rot = Number.parseInt(properties.rotation ?? '0', 10)
-  return Number.isFinite(rot) ? rot * 22.5 : 0
+}
+
+/**
+ * 落地装饰 rotation 0-15，每档 22.5°（banner / skull 共用）。
+ *
+ * 符号必须取负：MC 原版 BannerBlockEntityRenderer / SkullBlockEntityRenderer 都是
+ * `POSITIVE_Y.rotationDegrees(-RotationPropertyHelper.toDegrees(rotation))`。
+ * 按放置公式 `rotation = floor((180 + yaw) * 16 / 360 + 0.5) & 15` 反推，
+ * rotation=0 正面朝南、4 朝西、8 朝北、12 朝东；用正号会让东西向左右颠倒
+ * （0 和 8 两档恰好巧合正确，所以这个 bug 长期没被发现）。
+ */
+function computeStandingDecorationRotationDeg(rotation) {
+  const rot = Number.parseInt(rotation ?? '0', 10)
+  if (!Number.isFinite(rot)) return 0
+  return -rot * 22.5
+}
+
+function isSkullBlockId(name) {
+  return SKULL_BLOCK_IDS.has(name)
+}
+
+/**
+ * 头颅方块的原版 special-renderer 几何，从 16px 模型空间缩放到方块空间。
+ * 玩家头暂用 Steve；自定义皮肤需要额外的 BlockEntity renderData 链路，不在此处理。
+ * 与网站 lib/renderer/geometry-utils.ts 的 createSkullMesh 保持同一实现。
+ */
+function createSkullMesh(blockId, properties = {}, atlas = null) {
+  if (!atlas) return null
+  const name = blockId.replace('minecraft:', '')
+  let mesh
+
+  if (name === 'dragon_head' || name === 'dragon_wall_head') {
+    mesh = SpecialRenderers.dragonHeadRenderer()(atlas)
+  } else if (name === 'piglin_head' || name === 'piglin_wall_head') {
+    mesh = SpecialRenderers.piglinHeadRenderer()(atlas)
+  } else {
+    const renderer = (() => {
+      switch (name) {
+        case 'skeleton_skull':
+        case 'skeleton_wall_skull':
+          return SpecialRenderers.headRenderer(Identifier.create('skeleton/skeleton'), 2)
+        case 'wither_skeleton_skull':
+        case 'wither_skeleton_wall_skull':
+          return SpecialRenderers.headRenderer(Identifier.create('skeleton/wither_skeleton'), 2)
+        case 'creeper_head':
+        case 'creeper_wall_head':
+          return SpecialRenderers.headRenderer(Identifier.create('creeper/creeper'), 2)
+        case 'zombie_head':
+        case 'zombie_wall_head':
+          return SpecialRenderers.headRenderer(Identifier.create('zombie/zombie'), 1)
+        case 'player_head':
+        case 'player_wall_head':
+          return SpecialRenderers.headRenderer(Identifier.create('player/wide/steve'), 1)
+        default:
+          return null
+      }
+    })()
+    if (!renderer) return null
+    mesh = renderer(atlas)
+  }
+
+  const isWall = name.includes('_wall_')
+  const rotationDeg = isWall
+    ? computeWallDecorationRotationDeg(properties.facing)
+    : computeStandingDecorationRotationDeg(properties.rotation)
+  const transform = mat4.create()
+  mat4.translate(transform, transform, [8, 8, 8])
+  mat4.rotateY(transform, transform, rotationDeg * Math.PI / 180)
+  mat4.translate(transform, transform, [-8, -8, -8])
+  if (isWall) {
+    // 先把正脸朝 +Z 的头颅贴到北墙，再绕方块中心转向其余三面。
+    mat4.translate(transform, transform, [0, 4, -4])
+  }
+  mesh.transform(transform)
+
+  const scale = mat4.create()
+  mat4.scale(scale, scale, [1 / 16, 1 / 16, 1 / 16])
+  mesh.transform(scale)
+  return mesh
+}
+
+/** 静态潮涌核心 base；不合并 waterlogged 水体，也不启用 cage/wind 动画。 */
+function createConduitMesh(atlas) {
+  if (!atlas) return null
+  const mesh = SpecialRenderers.conduitRenderer(atlas)
+  const scale = mat4.create()
+  mat4.scale(scale, scale, [1 / 16, 1 / 16, 1 / 16])
+  mesh.transform(scale)
+  return mesh
 }
 
 function addFace(quads, verts, normal, color, uv, flipX = false) {
@@ -1153,8 +1329,292 @@ function pushTexturedBox(quads, x0, y0, z0, x1, y1, z1, color, uv) {
   for (const face of faces) addFace(quads, face.verts, face.normal, color, uv)
 }
 
+// ─── 投影自带实体（Entities）──────────────────────────────
+//
+// 实测 277 个投影共 2726 个自带实体：画 1434 / 物品展示框 629 / 荧光展示框 345
+// / 盔甲架 255 / 掉落物 29 / 生物 30。此前 Entities 一行没读，全部丢失。
+//
+// 🔴 atlas 里没有 painting/ 这一类贴图（只有 block/ entity/ item/ 三类），
+// 所以画只能出正确的尺寸与朝向 + 独立材质槽，画面内容要用户自己在 Blender 里贴。
+
+/** 画的尺寸（单位：方块，[宽, 高]）。表里没有的按 1×1 处理并在 metadata 里报告。 */
+const PAINTING_SIZES = {
+  // 1×1
+  kebab: [1, 1], aztec: [1, 1], alban: [1, 1], aztec2: [1, 1], bomb: [1, 1],
+  plant: [1, 1], wasteland: [1, 1], meditative: [1, 1],
+  // 2×1（宽）
+  pool: [2, 1], courbet: [2, 1], sea: [2, 1], sunset: [2, 1], creebet: [2, 1],
+  // 1×2（高）
+  wanderer: [1, 2], graham: [1, 2], prairie_ride: [1, 2],
+  // 2×2
+  match: [2, 2], bust: [2, 2], stage: [2, 2], void: [2, 2],
+  skull_and_roses: [2, 2], wither: [2, 2], baroque: [2, 2], humble: [2, 2],
+  earth: [2, 2], wind: [2, 2], fire: [2, 2], water: [2, 2],
+  // 4×2
+  fighters: [4, 2], changing: [4, 2], finding: [4, 2], lowmist: [4, 2], passage: [4, 2],
+  // 4×3
+  skeleton: [4, 3], donkey_kong: [4, 3],
+  // 3×3
+  burning_skull: [3, 3], pigscene: [3, 3], pointer: [3, 3], bouquet: [3, 3],
+  cavebird: [3, 3], cotan: [3, 3], endboss: [3, 3], fern: [3, 3],
+  owlemons: [3, 3], sunflowers: [3, 3], tides: [3, 3],
+  // 3×4
+  backyard: [3, 4], pond: [3, 4],
+  // 4×4
+  orb: [4, 4], unpacked: [4, 4],
+}
+
+/** Direction.byId 顺序（item_frame 的 Facing 用它，0-5） */
+const DIRECTION_BY_ID = [
+  [0, -1, 0], // 0 down
+  [0, 1, 0],  // 1 up
+  [0, 0, -1], // 2 north
+  [0, 0, 1],  // 3 south
+  [-1, 0, 0], // 4 west
+  [1, 0, 0],  // 5 east
+]
+/** 水平朝向索引（painting 的 facing 用它，0-3） */
+const HORIZONTAL_BY_ID = [
+  [0, 0, 1],  // 0 south
+  [-1, 0, 0], // 1 west
+  [0, 0, -1], // 2 north
+  [1, 0, 0],  // 3 east
+]
+
+function readEntityNumber(compound, keys) {
+  for (const key of keys) {
+    if (!compound.has(key)) continue
+    try {
+      const value = compound.get(key)?.getAsNumber?.()
+      if (Number.isFinite(value)) return value
+    } catch { /* 标签形状不符，换下一个候选键 */ }
+  }
+  return undefined
+}
+
+function readEntityNumberList(compound, key, length) {
+  if (!compound.has(key)) return undefined
+  try {
+    const list = compound.getList(key)
+    if (list.length < length) return undefined
+    const out = []
+    for (let i = 0; i < length; i++) out.push(list.get(i).getAsNumber())
+    return out.every(Number.isFinite) ? out : undefined
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * 解析 Region 的 Entities 列表。
+ *
+ * 🔴 字段大小写在不同实体间不一致（painting 用 `facing`、item_frame 用 `Facing`），
+ * 且 `id` 可以整个不存在，一律按候选键 + 标签形状兜底。
+ *
+ * 🔴 **坐标基准和方块不一样**（实测定案，600 文件 100% 命中）：
+ * 实体的 `Pos` 是相对 `Region.Position` 的局部坐标，而方块用的是「负 Size 修正后」
+ * 的 origin。Size 为负时两者能差出整个区域的长度 —— 因为 Position.x 常常是 0，
+ * 这个 bug 会表现成「x 对、y 和 z 跑到负数去」。所以这里加的是 `Position` 原值。
+ */
+function collectLitematicEntities(region, regionPosition) {
+  const [rpX, rpY, rpZ] = regionPosition
+  const out = []
+  for (const listKey of ['Entities', 'entities']) {
+    if (!region.has(listKey)) continue
+    let list
+    try { list = region.getList(listKey) } catch { continue }
+    for (let i = 0; i < list.length; i++) {
+      let entity
+      try { entity = list.getCompound(i) } catch { continue }
+      const rawId = readNbtPrimitive(entity, ['id', 'Id'])
+      const id = typeof rawId === 'string' ? normalizeBlockId(rawId) : ''
+      const pos = readEntityNumberList(entity, 'Pos', 3)
+      if (!pos) continue
+      const rotation = readEntityNumberList(entity, 'Rotation', 2) ?? [0, 0]
+      const record = {
+        id: id || 'minecraft:unknown',
+        pos: [pos[0] + rpX, pos[1] + rpY, pos[2] + rpZ],
+        yaw: rotation[0],
+        pitch: rotation[1],
+      }
+      const facing = readEntityNumber(entity, ['facing', 'Facing'])
+      if (facing !== undefined) record.facing = facing
+      const variant = readNbtPrimitive(entity, ['variant', 'Variant', 'Motive'])
+      if (typeof variant === 'string') record.variant = variant.replace(/^minecraft:/, '')
+      const tile = [
+        readEntityNumber(entity, ['TileX']),
+        readEntityNumber(entity, ['TileY']),
+        readEntityNumber(entity, ['TileZ']),
+      ]
+      if (tile.every(v => v !== undefined)) {
+        record.tile = [tile[0] + rpX, tile[1] + rpY, tile[2] + rpZ]
+      }
+      const small = readEntityNumber(entity, ['Small'])
+      if (small !== undefined) record.small = Boolean(small)
+      const showArms = readEntityNumber(entity, ['ShowArms'])
+      if (showArms !== undefined) record.showArms = Boolean(showArms)
+      const noBasePlate = readEntityNumber(entity, ['NoBasePlate'])
+      if (noBasePlate !== undefined) record.noBasePlate = Boolean(noBasePlate)
+      out.push(record)
+    }
+  }
+  return out
+}
+
+/**
+ * 把「局部正面朝 +Z」的实体转到目标水平朝向。
+ *
+ * 🔴 与旗帜同一个符号坑：`mat4.rotateY(θ)` 把 +Z 转到 `(sinθ, 0, cosθ)`，
+ * 而 MC 的 yaw=0 朝 +Z、yaw 增大朝 -X，方向是 `(-sin(yaw), 0, cos(yaw))`。
+ * 两者差一个负号，所以 **θ = -yaw**。直接拿 Rotation[0] 当旋转角会东西颠倒
+ * （yaw=0/180 两档恰好巧合正确，和旗帜那个 bug 的表现一模一样）。
+ */
+function yawToRotationRad(yawDeg) {
+  return -yawDeg * Math.PI / 180
+}
+
+/** 由方向向量求「局部 +Z 转到该方向」所需的旋转角（弧度） */
+function directionToRotationRad(dx, dz) {
+  return Math.atan2(dx, dz)
+}
+
+const PAINTING_CANVAS_COLOR = [0.82, 0.76, 0.62]
+const PAINTING_FRAME_COLOR = [0.42, 0.30, 0.19]
+const ITEM_FRAME_COLOR = [0.65, 0.52, 0.35]
+const ARMOR_STAND_COLOR = [0.72, 0.64, 0.48]
+
+/**
+ * 画：一块 w×h 的薄板 + 一圈木框。
+ * 朝向直接用 Rotation[0]（yaw），与 facing byte 一致且更好用。
+ * 画布单独一个材质（`painting_<variant>`），方便用户在 Blender 里换成真实画作贴图。
+ */
+function createPaintingMesh(entity, atlas) {
+  const variant = entity.variant ?? 'kebab'
+  const [w, h] = PAINTING_SIZES[variant] ?? [1, 1]
+  const woodUV = getAtlasTextureUV({ atlas }, 'minecraft:block/oak_planks')
+  const canvasUV = getAtlasTextureUV({ atlas }, 'minecraft:block/white_wool')
+    ?? getAtlasTextureUV({ atlas }, 'minecraft:block/white_stained_glass')
+
+  const quads = []
+  const depth = 1 / 16
+  const halfW = w / 2
+  const halfH = h / 2
+  // 局部空间：画心在原点，正面朝 +Z，随后按 yaw 旋转 + 平移到 Pos
+  addFace(quads, [
+    [-halfW, halfH, depth / 2], [-halfW, -halfH, depth / 2],
+    [halfW, -halfH, depth / 2], [halfW, halfH, depth / 2],
+  ], [0, 0, 1], PAINTING_CANVAS_COLOR, canvasUV)
+  addFace(quads, [
+    [halfW, halfH, -depth / 2], [halfW, -halfH, -depth / 2],
+    [-halfW, -halfH, -depth / 2], [-halfW, halfH, -depth / 2],
+  ], [0, 0, -1], PAINTING_FRAME_COLOR, woodUV, true)
+  // 四条侧边
+  const edge = 1 / 32
+  pushTexturedBox(quads, -halfW, halfH - edge, -depth / 2, halfW, halfH, depth / 2, PAINTING_FRAME_COLOR, woodUV)
+  pushTexturedBox(quads, -halfW, -halfH, -depth / 2, halfW, -halfH + edge, depth / 2, PAINTING_FRAME_COLOR, woodUV)
+  pushTexturedBox(quads, -halfW, -halfH, -depth / 2, -halfW + edge, halfH, depth / 2, PAINTING_FRAME_COLOR, woodUV)
+  pushTexturedBox(quads, halfW - edge, -halfH, -depth / 2, halfW, halfH, depth / 2, PAINTING_FRAME_COLOR, woodUV)
+
+  return { mesh: new DsMesh(quads), materialId: `painting_${variant}` }
+}
+
+/**
+ * 物品展示框：12×12×1 的板贴 block/item_frame。
+ * Facing 0-5（含朝上/朝下），实测分布六向都有（朝下 30 个）。
+ * 不做内容物（Item），那需要整套物品模型链路。
+ */
+function createItemFrameMesh(entity, atlas) {
+  const glow = entity.id === 'minecraft:glow_item_frame'
+  const uv = getAtlasTextureUV({ atlas }, glow ? 'minecraft:block/glow_item_frame' : 'minecraft:block/item_frame')
+    ?? getAtlasTextureUV({ atlas }, 'minecraft:block/birch_planks')
+  const quads = []
+  const half = 6 / 16
+  const depth = 1 / 16
+  // 局部空间：正面朝 +Z
+  pushTexturedBox(quads, -half, -half, -depth, half, half, 0, ITEM_FRAME_COLOR, uv)
+  return { mesh: new DsMesh(quads), materialId: glow ? 'glow_item_frame' : 'item_frame' }
+}
+
+/**
+ * 盔甲架：底座 + 中柱 + 肩杆（+ 手臂，取决于 ShowArms）+ 头柱。
+ * 贴图 entity/armorstand/armorstand 整张平铺，不逐面对 UV —— 原版模型的 UV 布局
+ * 要照搬整个 ArmorStandEntityModel，收益不抵成本，用户在 Blender 里多半也要换材质。
+ */
+function createArmorStandMesh(entity, atlas) {
+  const uv = getAtlasTextureUV({ atlas }, 'minecraft:entity/armorstand/armorstand')
+    ?? getAtlasTextureUV({ atlas }, 'minecraft:block/oak_planks')
+  const scale = entity.small ? 0.5 : 1
+  const s = (v) => v * scale
+  const quads = []
+  // 局部空间：原点在脚下中心，正面朝 +Z
+  if (!entity.noBasePlate) {
+    pushTexturedBox(quads, -6 / 16, 0, -6 / 16, 6 / 16, s(1 / 16), 6 / 16, ARMOR_STAND_COLOR, uv)
+  }
+  pushTexturedBox(quads, -1 / 16, s(1 / 16), -1 / 16, 1 / 16, s(23 / 16), 1 / 16, ARMOR_STAND_COLOR, uv)   // 左腿柱
+  pushTexturedBox(quads, -2 / 16, s(22 / 16), -1 / 16, 2 / 16, s(24 / 16), 1 / 16, ARMOR_STAND_COLOR, uv)  // 胯
+  pushTexturedBox(quads, -1 / 16, s(24 / 16), -1 / 16, 1 / 16, s(30 / 16), 1 / 16, ARMOR_STAND_COLOR, uv)  // 脊柱
+  pushTexturedBox(quads, -6 / 16, s(28 / 16), -1 / 16, 6 / 16, s(30 / 16), 1 / 16, ARMOR_STAND_COLOR, uv)  // 肩杆
+  if (entity.showArms) {
+    pushTexturedBox(quads, -8 / 16, s(20 / 16), -1 / 16, -6 / 16, s(29 / 16), 1 / 16, ARMOR_STAND_COLOR, uv)
+    pushTexturedBox(quads, 6 / 16, s(20 / 16), -1 / 16, 8 / 16, s(29 / 16), 1 / 16, ARMOR_STAND_COLOR, uv)
+  }
+  pushTexturedBox(quads, -1 / 16, s(30 / 16), -1 / 16, 1 / 16, s(31 / 16), 1 / 16, ARMOR_STAND_COLOR, uv)  // 颈
+  return { mesh: new DsMesh(quads), materialId: 'armor_stand' }
+}
+
+/**
+ * 生成一个自带实体的几何。返回 null 表示「这类实体没有模型」——
+ * 生物走这条路，由调用方登记到 metadata 让 Blender 侧建空物体占位。
+ */
+function createProjectionEntityMesh(entity, atlas) {
+  const bare = entity.id.replace('minecraft:', '')
+  let built = null
+
+  if (bare === 'painting') built = createPaintingMesh(entity, atlas)
+  else if (bare === 'item_frame' || bare === 'glow_item_frame') built = createItemFrameMesh(entity, atlas)
+  else {
+    // 生物走 vendored 的原版实体模型（78 类，与网站 Studio 同一份数据）；
+    // 盔甲架也在这份数据里，比手写骨架准，所以优先走它。
+    built = createEntityModelMesh(entity.id, atlas)
+    if (!built && bare === 'armor_stand') built = createArmorStandMesh(entity, atlas)
+  }
+  if (!built) return null
+
+  const transform = mat4.create()
+  mat4.translate(transform, transform, entity.pos)
+
+  if ((bare === 'item_frame' || bare === 'glow_item_frame') && entity.facing !== undefined) {
+    // 展示框六向：朝上/朝下绕 X 轴，其余四向绕 Y 轴
+    const dir = DIRECTION_BY_ID[entity.facing] ?? [0, 0, 1]
+    if (dir[1] === -1) mat4.rotateX(transform, transform, Math.PI / 2)
+    else if (dir[1] === 1) mat4.rotateX(transform, transform, -Math.PI / 2)
+    else mat4.rotateY(transform, transform, directionToRotationRad(dir[0], dir[2]))
+  } else if (bare === 'painting' && entity.facing !== undefined && HORIZONTAL_BY_ID[entity.facing]) {
+    // facing byte 比 Rotation 可靠（部分导出工具不写 Rotation）
+    const [dx, , dz] = HORIZONTAL_BY_ID[entity.facing]
+    mat4.rotateY(transform, transform, directionToRotationRad(dx, dz))
+  } else {
+    mat4.rotateY(transform, transform, yawToRotationRad(entity.yaw ?? 0))
+  }
+
+  built.mesh.transform(transform)
+  return built
+}
+
 function createEntityFallbackMesh(blockId, properties = {}, atlas = null) {
   const name = blockId.replace('minecraft:', '')
+
+  // 头颅与潮涌核心走 deepslate special renderer（带真实 entity/ 贴图 UV）。
+  // 手写盒子那条路不给 UV，导出 OBJ 会退化成 `vt 0 0` 采到 atlas 左上角，在 Blender 里就是灰盒子。
+  if (isSkullBlockId(name)) {
+    const skull = createSkullMesh(blockId, properties, atlas)
+    if (skull) return skull
+  }
+  if (name === 'conduit') {
+    const conduit = createConduitMesh(atlas)
+    if (conduit) return conduit
+  }
+
   if (/(^|_)banner$/.test(name) || /(^|_)wall_banner$/.test(name)) {
     return createBannerMesh(blockId, properties, atlas)
   }
@@ -1171,6 +1631,9 @@ function createEntityFallbackMesh(blockId, properties = {}, atlas = null) {
 function buildGeometry(model, resources, options = {}) {
   const { blockDefinitions, blockModels, atlas, defaultBlockProperties } = resources
   const preserveAdjacentFaces = Boolean(options.preserveAdjacentFaces)
+  const sections = new Set(options.sections ?? ALL_SECTIONS)
+  const wantBlocks = sections.has(SECTION_BLOCKS)
+  const wantBlockEntities = sections.has(SECTION_BLOCK_ENTITIES)
 
   const posIndex = new Map()
   for (const block of model.blocks) {
@@ -1201,6 +1664,8 @@ function buildGeometry(model, resources, options = {}) {
 
     const [x, y, z] = block.position
     const blockId = block.blockId
+    const section = isBlockEntityId(blockId) ? SECTION_BLOCK_ENTITIES : SECTION_BLOCKS
+    if (section === SECTION_BLOCKS ? !wantBlocks : !wantBlockEntities) continue
     const rawProps = getRenderPropertiesForBlock(block, posIndex)
     const props = fillDefaultProperties(rawProps, defaultBlockProperties.get(blockId))
 
@@ -1249,11 +1714,35 @@ function buildGeometry(model, resources, options = {}) {
     mesh.computeNormals()
 
     for (const quad of mesh.quads) {
-      allQuads.push({ quad, blockId })
+      allQuads.push({ quad, blockId, section })
     }
   }
 
-  return allQuads
+  // 投影自带实体（画 / 展示框 / 盔甲架）。没有模型的（生物等）登记到 skipped，
+  // 由 Blender 侧按坐标建空物体占位，而不是塞一个会进渲染的假盒子。
+  const entityStats = { built: {}, skipped: {}, unknownPaintingVariants: [] }
+  if (sections.has(SECTION_ENTITIES)) {
+    for (const entity of model.entities ?? []) {
+      const bare = entity.id.replace('minecraft:', '')
+      if (bare === 'painting' && entity.variant && !PAINTING_SIZES[entity.variant]
+        && !entityStats.unknownPaintingVariants.includes(entity.variant)) {
+        entityStats.unknownPaintingVariants.push(entity.variant)
+      }
+      let built = null
+      try { built = createProjectionEntityMesh(entity, atlas) } catch { built = null }
+      if (!built) {
+        entityStats.skipped[bare] = (entityStats.skipped[bare] ?? 0) + 1
+        continue
+      }
+      built.mesh.computeNormals()
+      for (const quad of built.mesh.quads) {
+        allQuads.push({ quad, blockId: `entity:${built.materialId}`, section: SECTION_ENTITIES })
+      }
+      entityStats.built[bare] = (entityStats.built[bare] ?? 0) + 1
+    }
+  }
+
+  return { quads: allQuads, entityStats }
 }
 
 // ─── Atlas 纹理准备 ─────────────────────────────────────
@@ -1285,7 +1774,7 @@ async function prepareAtlas(outputDir, resources) {
 
 // ─── OBJ/MTL 序列化 ────────────────────────────────────
 
-function serializeObjMtl(blockIdQuadMap, mtlFileName) {
+function serializeObjMtl(sectionMap, mtlFileName) {
   const objLines = [`# MCBlock Batch OBJ Export`, `mtllib ${mtlFileName}`, '']
   const mtlLines = [`# MCBlock Materials`]
 
@@ -1329,6 +1818,9 @@ function serializeObjMtl(blockIdQuadMap, mtlFileName) {
   const allUVs = []
   const faceGroups = []
 
+  for (const section of ALL_SECTIONS) {
+  const blockIdQuadMap = sectionMap.get(section)
+  if (!blockIdQuadMap || blockIdQuadMap.size === 0) continue
   for (const [blockId, quads] of blockIdQuadMap.entries()) {
     const baseMatName = blockId.replace('minecraft:', '').replace(/[^a-zA-Z0-9_-]/g, '_')
     const buckets = new Map()
@@ -1375,8 +1867,9 @@ function serializeObjMtl(blockIdQuadMap, mtlFileName) {
         faces.push([quadVerts[0], quadVerts[2], quadVerts[3]])
       }
 
-      faceGroups.push({ matName, faces, diffuse: getQuadDiffuse(bucketQuads), alpha: getMaterialAlpha(blockId) })
+      faceGroups.push({ section, matName, faces, diffuse: getQuadDiffuse(bucketQuads), alpha: getMaterialAlpha(blockId) })
     }
+  }
   }
 
   for (const [x, y, z] of allVertices) {
@@ -1396,7 +1889,13 @@ function serializeObjMtl(blockIdQuadMap, mtlFileName) {
   }
   objLines.push('')
 
-  for (const { matName, faces, diffuse, alpha } of faceGroups) {
+  let currentSection = null
+  for (const { section, matName, faces, diffuse, alpha } of faceGroups) {
+    // 每个分区一个 `o` 对象，Blender 侧据此分子集合（材质名前缀是兜底判据）
+    if (section !== currentSection) {
+      currentSection = section
+      objLines.push(`o ${SECTION_OBJECT_NAMES[section] ?? section}`)
+    }
     objLines.push(`usemtl ${matName}`)
     objLines.push(`g ${matName}`)
     for (const tri of faces) {
@@ -1441,15 +1940,17 @@ async function processLitematic(litematicPath, outputDir, resources, sharedAtlas
 
   console.log(`  方块数: ${model.totalBlockCount}, 尺寸: ${model.size.join('×')}`)
 
-  const allQuads = buildGeometry(model, resources, options)
+  const { quads: allQuads, entityStats } = buildGeometry(model, resources, options)
   if (allQuads.length === 0) {
     console.log(`  ⊘ 无几何体生成，跳过`)
     return false
   }
 
-  // 按 blockId 分组
-  const blockIdQuadMap = new Map()
-  for (const { quad, blockId } of allQuads) {
+  // 按「分区 → blockId」分组：分区决定 OBJ 里的 `o` 对象，blockId 决定材质
+  const sectionMap = new Map()
+  for (const { quad, blockId, section } of allQuads) {
+    if (!sectionMap.has(section)) sectionMap.set(section, new Map())
+    const blockIdQuadMap = sectionMap.get(section)
     if (!blockIdQuadMap.has(blockId)) blockIdQuadMap.set(blockId, [])
     blockIdQuadMap.get(blockId).push(quad)
   }
@@ -1470,15 +1971,32 @@ async function processLitematic(litematicPath, outputDir, resources, sharedAtlas
   }
 
   const mtlName = `${fileName}.mtl`
-  const { obj, mtl } = serializeObjMtl(blockIdQuadMap, mtlName)
+  const { obj, mtl } = serializeObjMtl(sectionMap, mtlName)
 
   const objPath = path.join(buildingDir, `${fileName}.obj`)
   const mtlPath = path.join(buildingDir, mtlName)
   fs.writeFileSync(objPath, obj, 'utf8')
   fs.writeFileSync(mtlPath, mtl, 'utf8')
 
-  const matCount = blockIdQuadMap.size
+  let matCount = 0
+  const sectionCounts = {}
+  for (const [section, map] of sectionMap.entries()) {
+    matCount += map.size
+    sectionCounts[section] = map.size
+  }
+  const skippedTotal = Object.values(entityStats.skipped).reduce((a, b) => a + b, 0)
   console.log(`  ✓ 导出完成: ${allQuads.length} 个面, ${matCount} 个材质`)
+  if (Object.keys(entityStats.built).length > 0) {
+    const parts = Object.entries(entityStats.built).map(([k, v]) => `${k}×${v}`)
+    console.log(`  · 自带实体: ${parts.join(' ')}`)
+  }
+  if (skippedTotal > 0) {
+    const parts = Object.entries(entityStats.skipped).map(([k, v]) => `${k}×${v}`)
+    console.log(`  · 无模型跳过 ${skippedTotal} 个（Blender 侧建空物体占位）: ${parts.join(' ')}`)
+  }
+  if (entityStats.unknownPaintingVariants.length > 0) {
+    console.log(`  ⚠ 画的尺寸表缺以下 variant，按 1×1 处理: ${entityStats.unknownPaintingVariants.join(', ')}`)
+  }
   return {
     input: litematicPath,
     name: fileName,
@@ -1493,7 +2011,17 @@ async function processLitematic(litematicPath, outputDir, resources, sharedAtlas
     size: model.size,
     faceCount: allQuads.length,
     materialCount: matCount,
+    sectionMaterialCounts: sectionCounts,
+    sectionObjectNames: SECTION_OBJECT_NAMES,
+    entityCounts: entityStats.built,
+    entitySkipped: entityStats.skipped,
+    // 没有模型的实体（生物等）：Blender 侧按这份坐标建空物体，用户自己放模型
+    entityPlaceholders: (model.entities ?? [])
+      .filter(e => !entityHasModel(e.id))
+      .map(e => ({ id: e.id, pos: e.pos, yaw: e.yaw })),
+    unknownPaintingVariants: entityStats.unknownPaintingVariants,
     preserveAdjacentFaces: Boolean(options.preserveAdjacentFaces),
+    sections: options.sections ?? ALL_SECTIONS,
   }
 }
 
@@ -1556,12 +2084,79 @@ function normalizeCliArgs(args) {
     throw new Error('Usage: node src/batch-obj-export.mjs import --input <file.litematic|dir> --output <dir> [--metadata-json <file>]')
   }
 
+  // --include=blocks,block-entities,entities（缺省全导）
+  let sections = ALL_SECTIONS
+  if (typeof parsed.include === 'string') {
+    const alias = {
+      blocks: SECTION_BLOCKS,
+      'block-entities': SECTION_BLOCK_ENTITIES,
+      blockentities: SECTION_BLOCK_ENTITIES,
+      entities: SECTION_ENTITIES,
+    }
+    sections = parsed.include.split(',')
+      .map(s => alias[s.trim().toLowerCase()])
+      .filter(Boolean)
+    if (sections.length === 0) {
+      throw new Error('--include 至少要含一项：blocks / block-entities / entities')
+    }
+  }
+
   return [
     parsed.input,
     parsed.output,
     parsed['metadata-json'],
-    { preserveAdjacentFaces: Boolean(parsed['preserve-adjacent-faces']) },
+    {
+      preserveAdjacentFaces: Boolean(parsed['preserve-adjacent-faces']),
+      sections,
+      probeOnly: Boolean(parsed['probe-only']),
+    },
   ]
+}
+
+/**
+ * 只扫描不导出：面板选完文件后拿三类数量做预览。
+ * 走完整解析但跳过几何与序列化，18375 方块的样本约 0.2 秒。
+ */
+function probeProjection(litematicPath) {
+  const ext = path.extname(litematicPath).toLowerCase()
+  const fileName = path.basename(litematicPath, ext)
+  const buffer = fs.readFileSync(litematicPath)
+  const model = parseProjectionBuffer(
+    buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength),
+    fileName,
+    ext,
+  )
+
+  let blocks = 0
+  let blockEntities = 0
+  for (const block of model.blocks) {
+    if (isBlockEntityId(block.blockId)) blockEntities++
+    else blocks++
+  }
+
+  const entityCounts = {}
+  for (const entity of model.entities ?? []) {
+    const bare = entity.id.replace('minecraft:', '')
+    entityCounts[bare] = (entityCounts[bare] ?? 0) + 1
+  }
+  const entitiesModelled = Object.entries(entityCounts)
+    .filter(([id]) => entityHasModel(`minecraft:${id}`))
+    .reduce((a, [, n]) => a + n, 0)
+  const entitiesTotal = Object.values(entityCounts).reduce((a, b) => a + b, 0)
+
+  return {
+    name: model.name ?? fileName,
+    author: model.author,
+    size: model.size,
+    counts: {
+      blocks,
+      blockEntities,
+      entities: entitiesTotal,
+      entitiesModelled,
+      entitiesPlaceholder: entitiesTotal - entitiesModelled,
+    },
+    entityBreakdown: entityCounts,
+  }
 }
 
 function writeRunMetadata(metadataJson, data) {
@@ -1592,6 +2187,33 @@ async function main() {
     process.exit(1)
   }
 
+  // 数量预览：不加载 MC 资源、不出几何，面板选完文件即时显示三类数量
+  if (converterOptions.probeOnly) {
+    // 只读 catalog（几 KB），用来分辨哪些实体有模型、哪些要占位
+    initEntityModels(ENTITY_MODEL_DIR)
+    const files = findLitematicFiles(inputDir)
+    const probes = []
+    for (const filePath of files) {
+      try {
+        probes.push({ input: filePath, ...probeProjection(filePath) })
+      } catch (err) {
+        probes.push({ input: filePath, error: err.message })
+      }
+    }
+    writeRunMetadata(metadataJson, {
+      converterVersion: CONVERTER_VERSION,
+      probeOnly: true,
+      input: inputDir,
+      probes,
+    })
+    for (const probe of probes) {
+      if (probe.error) { console.log(`${path.basename(probe.input)}: 解析失败 ${probe.error}`); continue }
+      const c = probe.counts
+      console.log(`${probe.name}: 方块 ${c.blocks} · 方块实体 ${c.blockEntities} · 自带实体 ${c.entities}（有模型 ${c.entitiesModelled} / 占位 ${c.entitiesPlaceholder}）`)
+    }
+    return
+  }
+
   console.log('═══════════════════════════════════════════')
   console.log('  MCBlock 批量 Litematic → OBJ 导出工具')
   console.log('═══════════════════════════════════════════')
@@ -1601,6 +2223,9 @@ async function main() {
 
   console.log('正在加载 Minecraft 资源...')
   const resources = await loadMcResources()
+  const entityModelCount = initEntityModels(ENTITY_MODEL_DIR)
+  if (entityModelCount > 0) console.log(`✓ 生物模型库 ${entityModelCount} 类`)
+  else console.log('⚠ 未找到生物模型库，生物将退回空物体占位')
   console.log('✓ 资源加载完成')
 
   fs.mkdirSync(outputDir, { recursive: true })
