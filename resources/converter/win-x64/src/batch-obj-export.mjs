@@ -1428,16 +1428,49 @@ function addFace(quads, verts, normal, color, uv, flipX = false) {
   quads.push(new Quad(vertices[0], vertices[1], vertices[2], vertices[3]))
 }
 
+/**
+ * 🔴 按面的世界宽高比，从纹理里取一块居中的子区域。
+ *
+ * 细长部件（旗帜杆、盔甲架的腿与脊柱、画框边条）如果每个面都铺满整张 16×16
+ * 纹理，比例就全错了：旗帜立柱侧面只有 0.083 宽却有 1.75 高，整张贴上去等于
+ * 把纹理垂直拉伸 21 倍，羊毛织纹被抻成长条（摸鱼猫 2026-09-05 实测发现）。
+ *
+ * MC 原版不会这样 —— 它给这些部件配的是尺寸匹配的窄条 UV（例如 banner 立柱是
+ * 2×42 的竖条，正好对上 2×42 的几何）。我们没有那样的专用纹理（atlas 里
+ * banner/base 的立柱区 alpha 全 0，用不了），退一步取一块宽高比与面一致的区域，
+ * 比例就对了。代价是细面取到的区域很窄、接近纯色 —— 但那比拉伸好得多，
+ * 而且这些部件本来也细到看不清纹理。
+ */
+function fitUvToFaceAspect(uv, worldW, worldH) {
+  if (!uv || !(worldW > 0) || !(worldH > 0)) return uv
+  const [u0, v0, u1, v1] = uv
+  const tw = u1 - u0
+  const th = v1 - v0
+  const aspect = worldW / worldH
+  let w = tw
+  let h = th
+  if (aspect >= 1) h = th / aspect
+  else w = tw * aspect
+  const cu = (u0 + u1) / 2
+  const cv = (v0 + v1) / 2
+  return [cu - w / 2, cv - h / 2, cu + w / 2, cv + h / 2]
+}
+
 function pushTexturedBox(quads, x0, y0, z0, x1, y1, z1, color, uv) {
+  const dx = Math.abs(x1 - x0)
+  const dy = Math.abs(y1 - y0)
+  const dz = Math.abs(z1 - z0)
   const faces = [
-    { verts: [[x0,y1,z0], [x0,y1,z1], [x1,y1,z1], [x1,y1,z0]], normal: [0,1,0] },
-    { verts: [[x0,y0,z1], [x0,y0,z0], [x1,y0,z0], [x1,y0,z1]], normal: [0,-1,0] },
-    { verts: [[x1,y1,z0], [x1,y0,z0], [x0,y0,z0], [x0,y1,z0]], normal: [0,0,-1] },
-    { verts: [[x0,y1,z1], [x0,y0,z1], [x1,y0,z1], [x1,y1,z1]], normal: [0,0,1] },
-    { verts: [[x1,y1,z1], [x1,y0,z1], [x1,y0,z0], [x1,y1,z0]], normal: [1,0,0] },
-    { verts: [[x0,y1,z0], [x0,y0,z0], [x0,y0,z1], [x0,y1,z1]], normal: [-1,0,0] },
+    { verts: [[x0,y1,z0], [x0,y1,z1], [x1,y1,z1], [x1,y1,z0]], normal: [0,1,0],  w: dx, h: dz },
+    { verts: [[x0,y0,z1], [x0,y0,z0], [x1,y0,z0], [x1,y0,z1]], normal: [0,-1,0], w: dx, h: dz },
+    { verts: [[x1,y1,z0], [x1,y0,z0], [x0,y0,z0], [x0,y1,z0]], normal: [0,0,-1], w: dx, h: dy },
+    { verts: [[x0,y1,z1], [x0,y0,z1], [x1,y0,z1], [x1,y1,z1]], normal: [0,0,1],  w: dx, h: dy },
+    { verts: [[x1,y1,z1], [x1,y0,z1], [x1,y0,z0], [x1,y1,z0]], normal: [1,0,0],  w: dz, h: dy },
+    { verts: [[x0,y1,z0], [x0,y0,z0], [x0,y0,z1], [x0,y1,z1]], normal: [-1,0,0], w: dz, h: dy },
   ]
-  for (const face of faces) addFace(quads, face.verts, face.normal, color, uv)
+  for (const face of faces) {
+    addFace(quads, face.verts, face.normal, color, fitUvToFaceAspect(uv, face.w, face.h))
+  }
 }
 
 // ─── 投影自带实体（Entities）──────────────────────────────
