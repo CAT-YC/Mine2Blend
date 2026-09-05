@@ -172,6 +172,86 @@ function entityHasModel(entityId) {
   return BUILTIN_ENTITY_MESHES.has(bare) || hasEntityModel(entityId)
 }
 
+/**
+ * 🔴 带 rotation 的告示牌（立式 / 悬挂）不能走 blockstate 路径。
+ *
+ * mcmeta 用 `<木种>_sign_22_5` / `_45` / `_67_5` 这些 model 表达 16 档细分角度，
+ * 它们靠 element 级 `rotation:{angle,axis:"y"}` 实现，而 deepslate 0.25.1 对
+ * blockstate 的 `y` 用 `rotateY(-y)`（对）、对 element rotation 用 `+angle`（反了）。
+ *
+ * 实测 crimson_sign 全 16 档：走 `_0` 的正交四档（0/4/8/12，只有 blockstate y）
+ * 全部正确，另外 12 档（带 element rotation）朝向全部镜像 —— 这也同时证明了
+ * MC 语义表（0=south/4=west/8=north/12=east）本身没问题。
+ *
+ * 试过在喂数据前把 y 轴 angle 取负，能救回 8 档，但 `_67_5` 那族是「几何预转 90°
+ * + angle=-22.5」的写法，取负后反而差 180°，救不干净。所以干脆绕开整条链路：
+ * 几何借 deepslate 的 signRenderer，旋转自己算 —— 与头颅、旗帜同一个模式。
+ *
+ * 挂墙告示牌只用 blockstate `y`、不碰 element rotation，端到端实测 49/49 正确，
+ * 保持走原路径不动。
+ */
+const SIGN_WOODS = [
+  'oak', 'spruce', 'birch', 'jungle', 'acacia', 'dark_oak', 'mangrove',
+  'cherry', 'bamboo', 'crimson', 'warped', 'pale_oak',
+]
+
+function parseRotatedSign(blockId) {
+  const name = blockId.replace('minecraft:', '')
+  // 只认立式与悬挂（带 rotation 的），挂墙的交给 blockstate 路径
+  const hanging = /^([a-z_]+)_hanging_sign$/.exec(name)
+  if (hanging && SIGN_WOODS.includes(hanging[1])) {
+    return { wood: hanging[1], hanging: true }
+  }
+  const standing = /^([a-z_]+)_sign$/.exec(name)
+  if (standing && SIGN_WOODS.includes(standing[1])) {
+    return { wood: standing[1], hanging: false }
+  }
+  return null
+}
+
+/**
+ * 立式 / 悬挂告示牌几何。
+ *
+ * deepslate 的 signRenderer 基准正面朝 -Z（板的 `north` 面 uv 落在贴图正面区），
+ * 而 MC 的 rotation=0 是正面朝 +Z，所以旋转角是 `180 - rot * 22.5`：
+ *   rot=0 → 180° → 朝 +Z(south) ✓   rot=4 → 90° → 朝 -X(west) ✓
+ *   rot=8 → 0°  → 朝 -Z(north) ✓   rot=12 → -90° → 朝 +X(east) ✓
+ * 缩放 2/3 与 deepslate getBlockMesh 对告示牌的处理一致。
+ */
+function createRotatedSignMesh(blockId, properties = {}, atlas = null) {
+  if (!atlas) return null
+  const info = parseRotatedSign(blockId)
+  if (!info) return null
+
+  let mesh
+  try {
+    if (info.hanging) {
+      const attached = String(properties.attached ?? 'false') === 'true'
+      mesh = SpecialRenderers.hangingSignRenderer(Identifier.create(info.wood))(attached, atlas)
+    } else {
+      mesh = SpecialRenderers.signRenderer(Identifier.create(info.wood))(atlas)
+    }
+  } catch {
+    return null
+  }
+  if (!mesh || mesh.quads.length === 0) return null
+
+  const rot = Number.parseInt(properties.rotation ?? '0', 10)
+  const deg = 180 - (Number.isFinite(rot) ? rot : 0) * 22.5
+
+  const t = mat4.create()
+  mat4.translate(t, t, [8, 8, 8])
+  mat4.rotateY(t, t, deg * Math.PI / 180)
+  mat4.scale(t, t, [2 / 3, 2 / 3, 2 / 3])
+  mat4.translate(t, t, [-8, -8, -8])
+  mesh.transform(t)
+
+  const scale = mat4.create()
+  mat4.scale(scale, scale, [1 / 16, 1 / 16, 1 / 16])
+  mesh.transform(scale)
+  return mesh
+}
+
 function isBlockEntityId(blockId) {
   const name = blockId.replace('minecraft:', '')
   // piston_head 会被 /_head$/ 命中，但它是普通方块不是 BlockEntity
@@ -1095,8 +1175,20 @@ function getAtlasTextureUV(resources, textureId) {
   }
 }
 
+/**
+ * MC 原版旗帜布料底纹。dye color 就 tint 在它上面得到 16 色旗帜。
+ * 注意 atlas 里的 id 是 `entity/banner/base`，deepslate 源码里写的
+ * `entity/banner_base` 在我们这份 atlas 里查不到（会退化成缺 UV）。
+ */
+const BANNER_BASE_TEXTURE = 'minecraft:entity/banner/base'
+
+// 布料 6 面在 banner 纹理里的分区（1/16 单位，取自 deepslate 的 bannerFace）
 const BANNER_FRONT_FACE_UV = [5.5, 0.25, 10.5, 10.25]
 const BANNER_BACK_FACE_UV = [0.25, 0.25, 5.25, 10.25]
+const BANNER_CLOTH_EDGE_MIN_X_UV = [0, 0.25, 0.25, 10.25]
+const BANNER_CLOTH_EDGE_MAX_X_UV = [5.25, 0.25, 5.5, 10.25]
+const BANNER_CLOTH_TOP_UV = [0.25, 0, 5.25, 0.25]
+const BANNER_CLOTH_BOTTOM_UV = [5.25, 0, 10.25, 0.25]
 
 function getAtlasTextureSubUV(resources, textureId, faceUv) {
   const textureUV = getAtlasTextureUV(resources, textureId)
@@ -1145,25 +1237,40 @@ function createBannerMesh(blockId, properties = {}, atlas = null) {
   const isWall = name.includes('wall_banner')
   const clothColor = extractBannerColor(blockId, properties)
   const woodColor = [0.45, 0.30, 0.20]
-  const uv = getAtlasTextureUV({ atlas }, 'minecraft:block/white_stained_glass')
+  // 杆（立柱 / 横杆）用不透明纯色纹理打底：atlas 里 banner/base 只打包了布料那一块，
+  // 立柱与横杆对应的分区实测 alpha 全 0，贴上去整根杆会消失。
+  const uv = getAtlasTextureUV({ atlas }, 'minecraft:block/white_wool')
     ?? getAtlasTextureUV({ atlas }, 'minecraft:block/oak_planks')
+  // 🔴 布料必须用原版旗帜底纹，不能拿别的方块纹理凑「纯白」（摸鱼猫 2026-09-05 实测）：
+  //   · white_stained_glass（网站在用）RGB 确实全 255，但 alpha 只有 102~163。
+  //     网站是 WebGL 渲染、材质忽略 alpha 才看不出来，导出 OBJ 进 Blender 就透了。
+  //   · white_wool 不透明，但自带羊毛粗织纹，染色后花得很明显。
+  //   · 全 atlas 只有 6 个纯白且不透明的像素，都在纹理边角，靠不住。
+  // banner/base 的布料 6 面实测 alpha 全 255、亮度 209~246，本来就是 MC 拿来 ×dye
+  // 得到旗帜颜色的那张底纹，那点织纹是原版该有的观感。
+  const clothUv = (faceUv) => getAtlasTextureSubUV({ atlas }, BANNER_BASE_TEXTURE, faceUv) ?? uv
   const quads = []
   const fx0 = 1 / 12
   const fx1 = 11 / 12
   const fy0 = isWall ? -0.8 : 1 / 6
   const fy1 = isWall ? 13 / 15 : 11 / 6
-  const fz0 = isWall ? 5 / 48 : 5 / 12
-  const fz1 = isWall ? 7 / 48 : 11 / 24
+  // 🔴 立式旗帜的布料挂在杆的 +Z 侧（杆 z∈[11/24, 13/24]，布料紧贴其外侧）。
+  // MC 的 BannerBlockEntityRenderer 在旋转之后有一步 scale(0.6667, -0.6667, -0.6667)，
+  // Z 取负，把模型空间里位于杆 -Z 侧的布料翻到世界的 +Z 侧。这里直接按翻转后的结果
+  // 建几何，而不是「建在 -Z 侧再整体转 180°」——后者布料位置能对，却会把正反面一起
+  // 转反（FRONT 区落到背面），还得再加一处补偿。
+  const fz0 = isWall ? 5 / 48 : 13 / 24
+  const fz1 = isWall ? 7 / 48 : 7 / 12
   const bar = isWall
     ? [1 / 12, 47 / 60, 1 / 48, 11 / 12, 13 / 15, 5 / 48]
     : [1 / 12, 7 / 4, 11 / 24, 11 / 12, 11 / 6, 13 / 24]
 
-  addFace(quads, [[fx0, fy1, fz1], [fx0, fy0, fz1], [fx1, fy0, fz1], [fx1, fy1, fz1]], [0, 0, 1], clothColor, uv)
-  addFace(quads, [[fx1, fy1, fz0], [fx1, fy0, fz0], [fx0, fy0, fz0], [fx0, fy1, fz0]], [0, 0, -1], clothColor, uv, true)
-  addFace(quads, [[fx0, fy1, fz0], [fx0, fy1, fz1], [fx1, fy1, fz1], [fx1, fy1, fz0]], [0, 1, 0], clothColor, uv)
-  addFace(quads, [[fx0, fy0, fz1], [fx0, fy0, fz0], [fx1, fy0, fz0], [fx1, fy0, fz1]], [0, -1, 0], clothColor, uv)
-  addFace(quads, [[fx0, fy1, fz0], [fx0, fy0, fz0], [fx0, fy0, fz1], [fx0, fy1, fz1]], [-1, 0, 0], clothColor, uv)
-  addFace(quads, [[fx1, fy1, fz1], [fx1, fy0, fz1], [fx1, fy0, fz0], [fx1, fy1, fz0]], [1, 0, 0], clothColor, uv)
+  addFace(quads, [[fx0, fy1, fz1], [fx0, fy0, fz1], [fx1, fy0, fz1], [fx1, fy1, fz1]], [0, 0, 1], clothColor, clothUv(BANNER_FRONT_FACE_UV))
+  addFace(quads, [[fx1, fy1, fz0], [fx1, fy0, fz0], [fx0, fy0, fz0], [fx0, fy1, fz0]], [0, 0, -1], clothColor, clothUv(BANNER_BACK_FACE_UV), true)
+  addFace(quads, [[fx0, fy1, fz0], [fx0, fy1, fz1], [fx1, fy1, fz1], [fx1, fy1, fz0]], [0, 1, 0], clothColor, clothUv(BANNER_CLOTH_TOP_UV))
+  addFace(quads, [[fx0, fy0, fz1], [fx0, fy0, fz0], [fx1, fy0, fz0], [fx1, fy0, fz1]], [0, -1, 0], clothColor, clothUv(BANNER_CLOTH_BOTTOM_UV))
+  addFace(quads, [[fx0, fy1, fz0], [fx0, fy0, fz0], [fx0, fy0, fz1], [fx0, fy1, fz1]], [-1, 0, 0], clothColor, clothUv(BANNER_CLOTH_EDGE_MIN_X_UV))
+  addFace(quads, [[fx1, fy1, fz1], [fx1, fy0, fz1], [fx1, fy0, fz0], [fx1, fy1, fz0]], [1, 0, 0], clothColor, clothUv(BANNER_CLOTH_EDGE_MAX_X_UV))
 
   const patterns = deserializeBannerPatterns(properties[BANNER_PATTERNS_PROP])
   for (let i = 0; i < patterns.length; i++) {
@@ -1199,9 +1306,13 @@ function createBannerMesh(blockId, properties = {}, atlas = null) {
 }
 
 function computeBannerRotationDeg(isWall, properties) {
-  return isWall
-    ? computeWallDecorationRotationDeg(properties.facing)
-    : computeStandingDecorationRotationDeg(properties.rotation)
+  if (isWall) return computeWallDecorationRotationDeg(properties.facing)
+  // 这里不再补 180°：布料已经直接建在杆的 +Z 侧（见 createBannerMesh 里 fz0/fz1
+  // 的说明），基准姿态就是「rotation=0 正面朝 +Z(south)」，与挂墙旗帜、与网站
+  // 渲染侧的语义一致。
+  // 曾经的写法是「布料建在 -Z 侧 + 整体转 180°」，位置能对上，但 180° 会把正反面
+  // 一起转过去，FRONT 区落到背面 —— 只有带图案的旗帜才看得出来。
+  return computeStandingDecorationRotationDeg(properties.rotation)
 }
 
 /** 贴墙装饰的正面朝向映射（banner / skull 共用）。基准姿态正面朝 +Z(south)。 */
@@ -1679,8 +1790,13 @@ function buildGeometry(model, resources, options = {}) {
       const bareName = blockId.replace('minecraft:', '')
       const isBanner = /(^|_)banner$/.test(bareName) || /(^|_)wall_banner$/.test(bareName)
 
+      const rotatedSign = !isBanner ? createRotatedSignMesh(blockId, props, atlas) : null
+
       if (isBanner) {
         mesh = createEntityFallbackMesh(blockId, props, atlas) ?? createFallbackMesh()
+      } else if (rotatedSign) {
+        // 立式 / 悬挂告示牌：绕开 blockstate 的 element rotation（deepslate 方向反）
+        mesh = rotatedSign
       } else if (blockDef) {
         const cull = {}
         if (!preserveAdjacentFaces && isOpaqueFullBlock(blockId)) {

@@ -1,7 +1,7 @@
 bl_info = {
     "name": "Mine2Blend",
     "author": "MCBlock",
-    "version": (0, 5, 0),
+    "version": (0, 5, 1),
     "blender": (4, 2, 0),
     "location": "3D 视图 > 侧栏 > MCBlock",
     "description": "我的世界投影导入 Blender 插件，支持 Litematic 与 Schematic(.schem)",
