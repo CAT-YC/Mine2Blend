@@ -2,7 +2,7 @@
 
 > 把《我的世界》投影一键导入 Blender 的玩家工具
 
-![version](https://img.shields.io/badge/version-0.5.2%20beta-orange)
+![version](https://img.shields.io/badge/version-0.5.3%20beta-orange)
 ![blender](https://img.shields.io/badge/Blender-4.2%20LTS%2B-f5792a)
 ![platform](https://img.shields.io/badge/platform-Windows%2010%2F11%20x64-0078d6)
 ![license](https://img.shields.io/badge/license-GPL--3.0--or--later-blue)
@@ -11,7 +11,7 @@
 
 插件内置一套离线转换器，**无需手动安装 Node.js、也不依赖任何在线服务或服务器**——选中投影文件即可在本机完成转换并导入。
 
-> ⚠️ 当前为 **0.5.2 内测版**，仅提供 Windows 10 / 11 x64 运行时，欢迎在 Issues 反馈问题。
+> ⚠️ 当前为 **0.5.3 内测版**，仅提供 Windows 10 / 11 x64 运行时，欢迎在 Issues 反馈问题。
 
 ![Mine2Blend 导入演示](assets/demo-import.gif)
 

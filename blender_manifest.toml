@@ -1,7 +1,7 @@
 schema_version = "1.0.0"
 
 id = "mcblock_mine2blend"
-version = "0.5.2"
+version = "0.5.3"
 name = "Mine2Blend"
 tagline = "我的世界投影导入 Blender 工具，支持 Litematic 与 Schematic(.schem)"
 maintainer = "MCBlock"
