@@ -78,6 +78,9 @@ const NON_OPAQUE_KEYWORDS = [
   'bed', 'cake', 'tinted_glass',
 ]
 
+// 与 Blender 侧 material_utils.py 的半透明材质分类保持一致。
+const TRANSLUCENT_KEYWORDS = ['glass', 'water', 'ice', 'honey_block', 'slime_block']
+
 const OPAQUE_OVERRIDES = new Set([
   'snow_block', 'packed_ice', 'blue_ice', 'redstone_block',
   'red_mushroom_block', 'brown_mushroom_block', 'mushroom_stem',
@@ -498,6 +501,16 @@ function isOpaqueFullBlock(blockId) {
   return !matchesKeywords(blockId, NON_OPAQUE_KEYWORDS)
 }
 
+function isTranslucentBlock(blockId) {
+  const name = blockId.replace('minecraft:', '')
+  return TRANSLUCENT_KEYWORDS.some(keyword => name.includes(keyword))
+}
+
+function isOpaqueContactBlock(blockId) {
+  // grass_block 被宽泛的 grass 关键词排除，但它本身是完整实心方块。
+  return blockId === 'minecraft:grass_block' || isOpaqueFullBlock(blockId)
+}
+
 function getBiomeTintColor(blockId) {
   const name = blockId.replace('minecraft:', '')
   return BIOME_TINT_COLORS[name] ?? null
@@ -547,6 +560,62 @@ function getQuadFlatNormal(quad) {
   const len = Math.hypot(nx, ny, nz)
   if (len <= 1e-8) return null
   return { x: nx / len, y: ny / len, z: nz / len }
+}
+
+function getContactFace(quad, position) {
+  if (!position) return null
+  const vertices = quad.vertices()
+  if (vertices.length !== 4) return null
+  const normal = getQuadFlatNormal(quad)
+  if (!normal) return null
+  const axes = ['x', 'y', 'z']
+  const axis = axes.findIndex(name => Math.abs(normal[name]) > 0.999999)
+  if (axis < 0) return null
+  const coordinate = axes[axis]
+  const plane = vertices[0].pos[coordinate]
+  if (!vertices.every(vertex => Math.abs(vertex.pos[coordinate] - plane) < 1e-6)) return null
+  const side = Math.abs(plane - position[axis]) < 1e-6 ? -1
+    : Math.abs(plane - position[axis] - 1) < 1e-6 ? 1 : 0
+  if (!side) return null
+  const key = vertices.map(vertex => axes.map(name => Math.round(vertex.pos[name] * 1e6)).join(','))
+    .sort().join('|')
+  return { key, axis, side, normal }
+}
+
+function cullTranslucentContactFaces(quads) {
+  const facesByGeometry = new Map()
+  for (let index = 0; index < quads.length; index++) {
+    const entry = quads[index]
+    const face = getContactFace(entry.quad, entry.position)
+    if (!face) continue
+    if (!facesByGeometry.has(face.key)) facesByGeometry.set(face.key, [])
+    facesByGeometry.get(face.key).push({ index, entry, face })
+  }
+
+  const removed = new Set()
+  for (const group of facesByGeometry.values()) {
+    if (group.length < 2) continue
+    for (let i = 0; i < group.length - 1; i++) {
+      for (let j = i + 1; j < group.length; j++) {
+        const a = group[i]
+        const b = group[j]
+        if (a.face.axis !== b.face.axis || a.face.side !== -b.face.side) continue
+        const axis = a.face.axis
+        if (a.entry.position[axis] + a.face.side !== b.entry.position[axis]) continue
+        if ([0, 1, 2].some(other => other !== axis &&
+          a.entry.position[other] !== b.entry.position[other])) continue
+        const an = a.face.normal
+        const bn = b.face.normal
+        if (an.x * bn.x + an.y * bn.y + an.z * bn.z > -0.999999) continue
+
+        const aTransparent = isTranslucentBlock(a.entry.blockId)
+        const bTransparent = isTranslucentBlock(b.entry.blockId)
+        if (aTransparent && (bTransparent || isOpaqueContactBlock(b.entry.blockId))) removed.add(a.index)
+        if (bTransparent && (aTransparent || isOpaqueContactBlock(a.entry.blockId))) removed.add(b.index)
+      }
+    }
+  }
+  return quads.filter((_, index) => !removed.has(index))
 }
 
 function isTintedQuad(quad) {
@@ -1863,7 +1932,7 @@ function buildGeometry(model, resources, options = {}) {
     mesh.computeNormals()
 
     for (const quad of mesh.quads) {
-      allQuads.push({ quad, blockId, section })
+      allQuads.push({ quad, blockId, section, position: block.position })
     }
   }
 
@@ -1891,7 +1960,10 @@ function buildGeometry(model, resources, options = {}) {
     }
   }
 
-  return { quads: allQuads, entityStats }
+  return {
+    quads: options.cullTranslucentOverlap ? cullTranslucentContactFaces(allQuads) : allQuads,
+    entityStats,
+  }
 }
 
 // ─── Atlas 纹理准备 ─────────────────────────────────────
@@ -2256,6 +2328,7 @@ function normalizeCliArgs(args) {
     parsed['metadata-json'],
     {
       preserveAdjacentFaces: Boolean(parsed['preserve-adjacent-faces']),
+      cullTranslucentOverlap: Boolean(parsed['cull-translucent-overlap']),
       sections,
       probeOnly: Boolean(parsed['probe-only']),
     },

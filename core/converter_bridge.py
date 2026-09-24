@@ -275,6 +275,7 @@ def run_litematic_converter(
         "--metadata-json",
         metadata_path,
         "--preserve-adjacent-faces",
+        "--cull-translucent-overlap",
     ]
     if sections is not None:
         if not sections:
