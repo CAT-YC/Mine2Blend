@@ -94,6 +94,17 @@ class Mine2BlendSceneProperties(bpy.types.PropertyGroup):
         default=False,
     )
 
+    lantern_emission: bpy.props.BoolProperty(name="灯窗自发光", default=True)
+    emissive_enabled: bpy.props.BoolProperty(name="常用方块自发光", default=True)
+    emissive_multiplier: bpy.props.FloatProperty(name="自发光倍率", default=1.0, min=0.0, max=10.0,
+        description="调整常用发光方块的视觉强度；灯笼仍在灯笼光照中独立控制")
+    lantern_strength: bpy.props.FloatProperty(name="发光强度", default=4.0, min=0.0, max=50.0)
+    lantern_auxiliary: bpy.props.BoolProperty(name="辅助点光", default=False,
+        description="在灯体四侧创建低功率点光，保留阴影；数量随灯笼增加")
+    lantern_power: bpy.props.FloatProperty(name="每盏总功率", default=12.0, min=0.0, max=200.0,
+        description="单位瓦，分摊给四侧点光；导入时按模型比例换算")
+    lantern_limit: bpy.props.IntProperty(name="最多辅助灯笼", default=32, min=1, max=256)
+
     last_message: bpy.props.StringProperty(name="最近结果", default="")
     last_error: bpy.props.StringProperty(name="最近错误", default="")
     last_error_category: bpy.props.StringProperty(name="错误类型", default="")

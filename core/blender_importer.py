@@ -3,11 +3,18 @@ from typing import Dict, Iterable, List, Set
 
 import bpy
 
-from . import material_utils, path_utils, surface_utils
+from . import material_utils, path_utils, surface_utils, lantern_utils, emissive_utils
 
 
 class ImporterError(Exception):
     """Blender 导入层错误，消息可直接展示给用户。"""
+
+
+def _remove_object(obj):
+    light = obj.data if obj.type == 'LIGHT' else None
+    bpy.data.objects.remove(obj, do_unlink=True)
+    if light is not None and light.users == 0:
+        bpy.data.lights.remove(light)
 
 
 def _snapshot_object_names() -> Set[str]:
@@ -169,7 +176,7 @@ def _move_objects_to_collection(objects: Iterable, target_collection) -> None:
 def _world_bounds(objects: Iterable):
     points = []
     for obj in objects:
-        if not hasattr(obj, "bound_box"):
+        if obj.type != 'MESH' or not hasattr(obj, "bound_box"):
             continue
         for corner in obj.bound_box:
             points.append(obj.matrix_world @ Vector(corner))
@@ -220,6 +227,13 @@ def import_obj_file(
     parent_name: str = "Mine2Blend",
     split_collections: bool = False,
     entity_placeholders: List[Dict] = None,
+    lantern_emission: bool = True,
+    lantern_strength: float = 4.0,
+    lantern_auxiliary: bool = False,
+    lantern_power: float = 12.0,
+    lantern_limit: int = 32,
+    emissive_enabled: bool = True,
+    emissive_multiplier: float = 1.0,
 ) -> Dict[str, object]:
     if not obj_path:
         raise ImporterError("OBJ 路径为空")
@@ -228,7 +242,7 @@ def import_obj_file(
 
     snapshot = _snapshot_object_names()
     existing_collections = set(bpy.data.collections)
-    existing_data = {name: set(getattr(bpy.data, name)) for name in ('meshes', 'materials', 'images')}
+    existing_data = {name: set(getattr(bpy.data, name)) for name in ('meshes', 'materials', 'images', 'lights')}
     target_collection = _ensure_collection(collection_name, parent_name)
 
     try:
@@ -251,6 +265,11 @@ def import_obj_file(
         section_counts = split_objects_into_sections(new_objects, target_collection) if split_collections else {}
         materials = material_utils.iter_object_materials(new_objects)
         fixed = material_utils.fix_materials(materials)
+        emissive = emissive_utils.prepare_objects(new_objects, obj_path, emissive_enabled, emissive_multiplier)
+        lighting = lantern_utils.prepare_collection(target_collection, new_objects, obj_path,
+            emission=lantern_emission, strength=lantern_strength, auxiliary=lantern_auxiliary,
+            power=lantern_power, limit=lantern_limit)
+        materials = material_utils.iter_object_materials(new_objects)
         # 独立布料图随场景保存，重导清转换缓存时不能使旧模型丢失图案。
         for image in bpy.data.images:
             if image in existing_data['images'] or image.packed_file:
@@ -260,7 +279,7 @@ def import_obj_file(
                 image.pack()
     except Exception as exc:
         for obj in _objects_added_since(snapshot):
-            bpy.data.objects.remove(obj, do_unlink=True)
+            _remove_object(obj)
         for name, previous in existing_data.items():
             collection = getattr(bpy.data, name)
             for data in list(collection):
@@ -280,6 +299,8 @@ def import_obj_file(
         "materials": materials,
         "fixed": fixed,
         "surface": surface,
+        "lighting": lighting,
+        "emissive": emissive,
         "section_counts": section_counts,
         "placeholders": placeholder_objects,
         "placeholder_count": len(placeholder_objects),
@@ -299,7 +320,7 @@ def clear_collections_by_prefix(prefix: str = "Mine2Blend") -> int:
     parent = bpy.data.collections.get(clean_prefix)
     if parent is not None:
         for obj in list(parent.objects):
-            bpy.data.objects.remove(obj, do_unlink=True)
+            _remove_object(obj)
             removed += 1
         if not parent.children and not parent.objects:
             try:
@@ -339,7 +360,7 @@ def _remove_collection_tree(coll) -> int:
     for child in list(coll.children):
         removed += _remove_collection_tree(child)
     for obj in list(coll.objects):
-        bpy.data.objects.remove(obj, do_unlink=True)
+        _remove_object(obj)
         removed += 1
     try:
         bpy.data.collections.remove(coll)
@@ -373,6 +394,7 @@ def commit_staged_projection(staged_collection, target_collection):
     new_objects = list(staged_collection.objects)
     new_children = list(staged_collection.children)
     linked_objects, linked_children = [], []
+    previous_lanterns = target_collection.get('m2b_lantern_manifest')
     try:
         for obj in new_objects:
             target_collection.objects.link(obj)
@@ -380,18 +402,26 @@ def commit_staged_projection(staged_collection, target_collection):
         for child in new_children:
             target_collection.children.link(child)
             linked_children.append(child)
+        if staged_collection.get('m2b_lantern_manifest') is not None:
+            target_collection['m2b_lantern_manifest'] = staged_collection['m2b_lantern_manifest']
+        else:
+            target_collection.pop('m2b_lantern_manifest', None)
     except Exception as exc:
         for child in linked_children:
             target_collection.children.unlink(child)
         for obj in linked_objects:
             target_collection.objects.unlink(obj)
+        if previous_lanterns is None:
+            target_collection.pop('m2b_lantern_manifest', None)
+        else:
+            target_collection['m2b_lantern_manifest'] = previous_lanterns
         raise ImporterError(f"新模型提交失败，原模型已保留：{exc}") from exc
 
     removed_count = 0
     for child in old_children:
         removed_count += _remove_collection_tree(child)
     for obj in old_objects:
-        bpy.data.objects.remove(obj, do_unlink=True)
+        _remove_object(obj)
         removed_count += 1
     renamed_sections = {}
     for child in new_children:
@@ -417,7 +447,7 @@ def clear_collection_by_name(collection_name: str) -> int:
         for child in list(coll.children):
             removed += _remove_collection_tree(child)
         for obj in list(coll.objects):
-            bpy.data.objects.remove(obj, do_unlink=True)
+            _remove_object(obj)
             removed += 1
     return removed
 

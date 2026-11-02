@@ -554,7 +554,7 @@ def apply_surface_shaders(materials: Iterable) -> int:
 
 def fix_materials(materials: Iterable) -> dict:
     material_list = list(materials)
-    return {
+    result = {
         "materials": len(material_list),
         "closest": set_image_textures_to_closest(material_list),
         "tint": apply_color_tints(material_list),
@@ -562,6 +562,11 @@ def fix_materials(materials: Iterable) -> dict:
         "alpha_mode": apply_alpha_modes(material_list),
         "surfaces": apply_surface_shaders(material_list),
     }
+    from . import lantern_utils
+    lantern_utils.restore_materials(material_list)
+    from . import emissive_utils
+    emissive_utils.restore_materials(material_list)
+    return result
 
 
 def iter_object_materials(objs: Iterable) -> List:

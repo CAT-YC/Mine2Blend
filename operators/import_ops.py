@@ -189,6 +189,13 @@ class MINE2BLEND_OT_import_litematic(bpy.types.Operator):
                        and isinstance(placeholders, list)
                     else None
                 ),
+                lantern_emission=settings.lantern_emission,
+                lantern_strength=settings.lantern_strength,
+                lantern_auxiliary=settings.lantern_auxiliary,
+                lantern_power=settings.lantern_power,
+                lantern_limit=settings.lantern_limit,
+                emissive_enabled=settings.emissive_enabled,
+                emissive_multiplier=settings.emissive_multiplier,
             )
             if replacement_target is not None:
                 _set_progress(context, "提交同名模型替换", 88)
@@ -273,6 +280,9 @@ class MINE2BLEND_OT_import_litematic(bpy.types.Operator):
             f"{fixed.get('materials', 0)} 个材质，"
             f"耗时 {diagnostics.format_seconds(settings.last_total_seconds)}"
         )
+        lighting = import_result.get('lighting', {})
+        if lighting.get('skipped'):
+            settings.last_message += '；%d盏灯笼达到辅助点光上限，仍保留自发光' % lighting['skipped']
         _set_progress(context, "完成", 100)
         try:
             context.window_manager.progress_end()

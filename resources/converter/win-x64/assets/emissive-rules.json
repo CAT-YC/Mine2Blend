@@ -1,0 +1,2772 @@
+{
+  "version": 1,
+  "source": "https://minecraft.wiki/w/Light#Light-emitting_blocks",
+  "reviewed": "2026-11-02",
+  "notes": "游戏亮度是状态记录；Cycles强度为可调整的视觉预设，不等同Minecraft光照传播或物理功率。灯笼族使用独立灯笼配置；眼眸花仅为原生全亮纹理，不产生游戏方块光。",
+  "rules": {
+    "torch": {
+      "level": 14,
+      "strength": 4,
+      "textures": {
+        "torch": [
+          [
+            7,
+            6,
+            9,
+            8
+          ]
+        ]
+      },
+      "section": "blocks"
+    },
+    "wall_torch": {
+      "level": 14,
+      "strength": 4,
+      "textures": {
+        "torch": [
+          [
+            7,
+            6,
+            9,
+            8
+          ]
+        ]
+      },
+      "section": "blocks"
+    },
+    "soul_torch": {
+      "level": 10,
+      "strength": 4,
+      "textures": {
+        "soul_torch": [
+          [
+            7,
+            6,
+            9,
+            8
+          ]
+        ]
+      },
+      "section": "blocks"
+    },
+    "soul_wall_torch": {
+      "level": 10,
+      "strength": 4,
+      "textures": {
+        "soul_torch": [
+          [
+            7,
+            6,
+            9,
+            8
+          ]
+        ]
+      },
+      "section": "blocks"
+    },
+    "redstone_torch": {
+      "level": 7,
+      "strength": 2,
+      "textures": {
+        "redstone_torch": [
+          [
+            6,
+            5,
+            10,
+            9
+          ]
+        ]
+      },
+      "section": "blocks",
+      "when": {
+        "lit": "true"
+      }
+    },
+    "redstone_wall_torch": {
+      "level": 7,
+      "strength": 2,
+      "textures": {
+        "redstone_torch": [
+          [
+            6,
+            5,
+            10,
+            9
+          ]
+        ]
+      },
+      "section": "blocks",
+      "when": {
+        "lit": "true"
+      }
+    },
+    "sea_lantern": {
+      "level": 15,
+      "strength": 2,
+      "textures": {
+        "sea_lantern": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ]
+      },
+      "section": "blocks"
+    },
+    "glowstone": {
+      "level": 15,
+      "strength": 2,
+      "textures": {
+        "glowstone": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ]
+      },
+      "section": "blocks"
+    },
+    "shroomlight": {
+      "level": 15,
+      "strength": 2,
+      "textures": {
+        "shroomlight": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ]
+      },
+      "section": "blocks"
+    },
+    "redstone_lamp": {
+      "level": 15,
+      "strength": 2,
+      "textures": {
+        "redstone_lamp_on": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ]
+      },
+      "section": "blocks",
+      "when": {
+        "lit": "true"
+      }
+    },
+    "ochre_froglight": {
+      "level": 15,
+      "strength": 2,
+      "textures": {
+        "ochre_froglight_side": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ],
+        "ochre_froglight_top": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ]
+      },
+      "section": "blocks"
+    },
+    "verdant_froglight": {
+      "level": 15,
+      "strength": 2,
+      "textures": {
+        "verdant_froglight_side": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ],
+        "verdant_froglight_top": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ]
+      },
+      "section": "blocks"
+    },
+    "pearlescent_froglight": {
+      "level": 15,
+      "strength": 2,
+      "textures": {
+        "pearlescent_froglight_side": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ],
+        "pearlescent_froglight_top": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ]
+      },
+      "section": "blocks"
+    },
+    "end_rod": {
+      "level": 14,
+      "strength": 3,
+      "textures": {
+        "end_rod": [
+          [
+            0,
+            0,
+            2,
+            15
+          ],
+          [
+            2,
+            0,
+            4,
+            2
+          ]
+        ]
+      },
+      "section": "blocks"
+    },
+    "lava": {
+      "level": 15,
+      "strength": 1,
+      "textures": {
+        "lava_still": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ],
+        "lava_flow": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ]
+      },
+      "section": "blocks"
+    },
+    "flowing_lava": {
+      "level": 15,
+      "strength": 1,
+      "textures": {
+        "lava_still": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ],
+        "lava_flow": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ]
+      },
+      "section": "blocks"
+    },
+    "copper_torch": {
+      "level": 14,
+      "strength": 4,
+      "textures": {
+        "copper_torch": [
+          [
+            7,
+            6,
+            9,
+            8
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true
+    },
+    "copper_wall_torch": {
+      "level": 14,
+      "strength": 4,
+      "textures": {
+        "copper_torch": [
+          [
+            7,
+            6,
+            9,
+            8
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true
+    },
+    "cave_vines": {
+      "level": 14,
+      "strength": 3,
+      "textures": {
+        "cave_vines_lit": [
+          [
+            3,
+            2,
+            7,
+            5
+          ],
+          [
+            8,
+            7,
+            12,
+            11
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true,
+      "when": {
+        "berries": "true"
+      },
+      "selectors": {
+        "cave_vines_lit": "berry"
+      }
+    },
+    "cave_vines_plant": {
+      "level": 14,
+      "strength": 3,
+      "textures": {
+        "cave_vines_plant_lit": [
+          [
+            2,
+            3,
+            5,
+            6
+          ],
+          [
+            12,
+            7,
+            16,
+            11
+          ],
+          [
+            6,
+            12,
+            10,
+            16
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true,
+      "when": {
+        "berries": "true"
+      },
+      "selectors": {
+        "cave_vines_plant_lit": "berry"
+      }
+    },
+    "candle": {
+      "level": 3,
+      "strength": 8,
+      "textures": {
+        "candle_lit": [
+          [
+            0,
+            5,
+            1,
+            6
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true,
+      "levelProperty": "candles",
+      "levels": {
+        "1": 3,
+        "2": 6,
+        "3": 9,
+        "4": 12
+      },
+      "when": {
+        "lit": "true",
+        "waterlogged": "false"
+      },
+      "color": [
+        1,
+        0.38,
+        0.08
+      ]
+    },
+    "candle_cake": {
+      "level": 3,
+      "strength": 8,
+      "textures": {
+        "candle_lit": [
+          [
+            0,
+            5,
+            1,
+            6
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true,
+      "when": {
+        "lit": "true",
+        "waterlogged": "false"
+      },
+      "color": [
+        1,
+        0.38,
+        0.08
+      ]
+    },
+    "white_candle": {
+      "level": 3,
+      "strength": 8,
+      "textures": {
+        "white_candle_lit": [
+          [
+            0,
+            5,
+            1,
+            6
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true,
+      "levelProperty": "candles",
+      "levels": {
+        "1": 3,
+        "2": 6,
+        "3": 9,
+        "4": 12
+      },
+      "when": {
+        "lit": "true",
+        "waterlogged": "false"
+      },
+      "color": [
+        1,
+        0.38,
+        0.08
+      ]
+    },
+    "white_candle_cake": {
+      "level": 3,
+      "strength": 8,
+      "textures": {
+        "white_candle_lit": [
+          [
+            0,
+            5,
+            1,
+            6
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true,
+      "when": {
+        "lit": "true",
+        "waterlogged": "false"
+      },
+      "color": [
+        1,
+        0.38,
+        0.08
+      ]
+    },
+    "orange_candle": {
+      "level": 3,
+      "strength": 8,
+      "textures": {
+        "orange_candle_lit": [
+          [
+            0,
+            5,
+            1,
+            6
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true,
+      "levelProperty": "candles",
+      "levels": {
+        "1": 3,
+        "2": 6,
+        "3": 9,
+        "4": 12
+      },
+      "when": {
+        "lit": "true",
+        "waterlogged": "false"
+      },
+      "color": [
+        1,
+        0.38,
+        0.08
+      ]
+    },
+    "orange_candle_cake": {
+      "level": 3,
+      "strength": 8,
+      "textures": {
+        "orange_candle_lit": [
+          [
+            0,
+            5,
+            1,
+            6
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true,
+      "when": {
+        "lit": "true",
+        "waterlogged": "false"
+      },
+      "color": [
+        1,
+        0.38,
+        0.08
+      ]
+    },
+    "magenta_candle": {
+      "level": 3,
+      "strength": 8,
+      "textures": {
+        "magenta_candle_lit": [
+          [
+            0,
+            5,
+            1,
+            6
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true,
+      "levelProperty": "candles",
+      "levels": {
+        "1": 3,
+        "2": 6,
+        "3": 9,
+        "4": 12
+      },
+      "when": {
+        "lit": "true",
+        "waterlogged": "false"
+      },
+      "color": [
+        1,
+        0.38,
+        0.08
+      ]
+    },
+    "magenta_candle_cake": {
+      "level": 3,
+      "strength": 8,
+      "textures": {
+        "magenta_candle_lit": [
+          [
+            0,
+            5,
+            1,
+            6
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true,
+      "when": {
+        "lit": "true",
+        "waterlogged": "false"
+      },
+      "color": [
+        1,
+        0.38,
+        0.08
+      ]
+    },
+    "light_blue_candle": {
+      "level": 3,
+      "strength": 8,
+      "textures": {
+        "light_blue_candle_lit": [
+          [
+            0,
+            5,
+            1,
+            6
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true,
+      "levelProperty": "candles",
+      "levels": {
+        "1": 3,
+        "2": 6,
+        "3": 9,
+        "4": 12
+      },
+      "when": {
+        "lit": "true",
+        "waterlogged": "false"
+      },
+      "color": [
+        1,
+        0.38,
+        0.08
+      ]
+    },
+    "light_blue_candle_cake": {
+      "level": 3,
+      "strength": 8,
+      "textures": {
+        "light_blue_candle_lit": [
+          [
+            0,
+            5,
+            1,
+            6
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true,
+      "when": {
+        "lit": "true",
+        "waterlogged": "false"
+      },
+      "color": [
+        1,
+        0.38,
+        0.08
+      ]
+    },
+    "yellow_candle": {
+      "level": 3,
+      "strength": 8,
+      "textures": {
+        "yellow_candle_lit": [
+          [
+            0,
+            5,
+            1,
+            6
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true,
+      "levelProperty": "candles",
+      "levels": {
+        "1": 3,
+        "2": 6,
+        "3": 9,
+        "4": 12
+      },
+      "when": {
+        "lit": "true",
+        "waterlogged": "false"
+      },
+      "color": [
+        1,
+        0.38,
+        0.08
+      ]
+    },
+    "yellow_candle_cake": {
+      "level": 3,
+      "strength": 8,
+      "textures": {
+        "yellow_candle_lit": [
+          [
+            0,
+            5,
+            1,
+            6
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true,
+      "when": {
+        "lit": "true",
+        "waterlogged": "false"
+      },
+      "color": [
+        1,
+        0.38,
+        0.08
+      ]
+    },
+    "lime_candle": {
+      "level": 3,
+      "strength": 8,
+      "textures": {
+        "lime_candle_lit": [
+          [
+            0,
+            5,
+            1,
+            6
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true,
+      "levelProperty": "candles",
+      "levels": {
+        "1": 3,
+        "2": 6,
+        "3": 9,
+        "4": 12
+      },
+      "when": {
+        "lit": "true",
+        "waterlogged": "false"
+      },
+      "color": [
+        1,
+        0.38,
+        0.08
+      ]
+    },
+    "lime_candle_cake": {
+      "level": 3,
+      "strength": 8,
+      "textures": {
+        "lime_candle_lit": [
+          [
+            0,
+            5,
+            1,
+            6
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true,
+      "when": {
+        "lit": "true",
+        "waterlogged": "false"
+      },
+      "color": [
+        1,
+        0.38,
+        0.08
+      ]
+    },
+    "pink_candle": {
+      "level": 3,
+      "strength": 8,
+      "textures": {
+        "pink_candle_lit": [
+          [
+            0,
+            5,
+            1,
+            6
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true,
+      "levelProperty": "candles",
+      "levels": {
+        "1": 3,
+        "2": 6,
+        "3": 9,
+        "4": 12
+      },
+      "when": {
+        "lit": "true",
+        "waterlogged": "false"
+      },
+      "color": [
+        1,
+        0.38,
+        0.08
+      ]
+    },
+    "pink_candle_cake": {
+      "level": 3,
+      "strength": 8,
+      "textures": {
+        "pink_candle_lit": [
+          [
+            0,
+            5,
+            1,
+            6
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true,
+      "when": {
+        "lit": "true",
+        "waterlogged": "false"
+      },
+      "color": [
+        1,
+        0.38,
+        0.08
+      ]
+    },
+    "gray_candle": {
+      "level": 3,
+      "strength": 8,
+      "textures": {
+        "gray_candle_lit": [
+          [
+            0,
+            5,
+            1,
+            6
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true,
+      "levelProperty": "candles",
+      "levels": {
+        "1": 3,
+        "2": 6,
+        "3": 9,
+        "4": 12
+      },
+      "when": {
+        "lit": "true",
+        "waterlogged": "false"
+      },
+      "color": [
+        1,
+        0.38,
+        0.08
+      ]
+    },
+    "gray_candle_cake": {
+      "level": 3,
+      "strength": 8,
+      "textures": {
+        "gray_candle_lit": [
+          [
+            0,
+            5,
+            1,
+            6
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true,
+      "when": {
+        "lit": "true",
+        "waterlogged": "false"
+      },
+      "color": [
+        1,
+        0.38,
+        0.08
+      ]
+    },
+    "light_gray_candle": {
+      "level": 3,
+      "strength": 8,
+      "textures": {
+        "light_gray_candle_lit": [
+          [
+            0,
+            5,
+            1,
+            6
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true,
+      "levelProperty": "candles",
+      "levels": {
+        "1": 3,
+        "2": 6,
+        "3": 9,
+        "4": 12
+      },
+      "when": {
+        "lit": "true",
+        "waterlogged": "false"
+      },
+      "color": [
+        1,
+        0.38,
+        0.08
+      ]
+    },
+    "light_gray_candle_cake": {
+      "level": 3,
+      "strength": 8,
+      "textures": {
+        "light_gray_candle_lit": [
+          [
+            0,
+            5,
+            1,
+            6
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true,
+      "when": {
+        "lit": "true",
+        "waterlogged": "false"
+      },
+      "color": [
+        1,
+        0.38,
+        0.08
+      ]
+    },
+    "cyan_candle": {
+      "level": 3,
+      "strength": 8,
+      "textures": {
+        "cyan_candle_lit": [
+          [
+            0,
+            5,
+            1,
+            6
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true,
+      "levelProperty": "candles",
+      "levels": {
+        "1": 3,
+        "2": 6,
+        "3": 9,
+        "4": 12
+      },
+      "when": {
+        "lit": "true",
+        "waterlogged": "false"
+      },
+      "color": [
+        1,
+        0.38,
+        0.08
+      ]
+    },
+    "cyan_candle_cake": {
+      "level": 3,
+      "strength": 8,
+      "textures": {
+        "cyan_candle_lit": [
+          [
+            0,
+            5,
+            1,
+            6
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true,
+      "when": {
+        "lit": "true",
+        "waterlogged": "false"
+      },
+      "color": [
+        1,
+        0.38,
+        0.08
+      ]
+    },
+    "purple_candle": {
+      "level": 3,
+      "strength": 8,
+      "textures": {
+        "purple_candle_lit": [
+          [
+            0,
+            5,
+            1,
+            6
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true,
+      "levelProperty": "candles",
+      "levels": {
+        "1": 3,
+        "2": 6,
+        "3": 9,
+        "4": 12
+      },
+      "when": {
+        "lit": "true",
+        "waterlogged": "false"
+      },
+      "color": [
+        1,
+        0.38,
+        0.08
+      ]
+    },
+    "purple_candle_cake": {
+      "level": 3,
+      "strength": 8,
+      "textures": {
+        "purple_candle_lit": [
+          [
+            0,
+            5,
+            1,
+            6
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true,
+      "when": {
+        "lit": "true",
+        "waterlogged": "false"
+      },
+      "color": [
+        1,
+        0.38,
+        0.08
+      ]
+    },
+    "blue_candle": {
+      "level": 3,
+      "strength": 8,
+      "textures": {
+        "blue_candle_lit": [
+          [
+            0,
+            5,
+            1,
+            6
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true,
+      "levelProperty": "candles",
+      "levels": {
+        "1": 3,
+        "2": 6,
+        "3": 9,
+        "4": 12
+      },
+      "when": {
+        "lit": "true",
+        "waterlogged": "false"
+      },
+      "color": [
+        1,
+        0.38,
+        0.08
+      ]
+    },
+    "blue_candle_cake": {
+      "level": 3,
+      "strength": 8,
+      "textures": {
+        "blue_candle_lit": [
+          [
+            0,
+            5,
+            1,
+            6
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true,
+      "when": {
+        "lit": "true",
+        "waterlogged": "false"
+      },
+      "color": [
+        1,
+        0.38,
+        0.08
+      ]
+    },
+    "brown_candle": {
+      "level": 3,
+      "strength": 8,
+      "textures": {
+        "brown_candle_lit": [
+          [
+            0,
+            5,
+            1,
+            6
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true,
+      "levelProperty": "candles",
+      "levels": {
+        "1": 3,
+        "2": 6,
+        "3": 9,
+        "4": 12
+      },
+      "when": {
+        "lit": "true",
+        "waterlogged": "false"
+      },
+      "color": [
+        1,
+        0.38,
+        0.08
+      ]
+    },
+    "brown_candle_cake": {
+      "level": 3,
+      "strength": 8,
+      "textures": {
+        "brown_candle_lit": [
+          [
+            0,
+            5,
+            1,
+            6
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true,
+      "when": {
+        "lit": "true",
+        "waterlogged": "false"
+      },
+      "color": [
+        1,
+        0.38,
+        0.08
+      ]
+    },
+    "green_candle": {
+      "level": 3,
+      "strength": 8,
+      "textures": {
+        "green_candle_lit": [
+          [
+            0,
+            5,
+            1,
+            6
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true,
+      "levelProperty": "candles",
+      "levels": {
+        "1": 3,
+        "2": 6,
+        "3": 9,
+        "4": 12
+      },
+      "when": {
+        "lit": "true",
+        "waterlogged": "false"
+      },
+      "color": [
+        1,
+        0.38,
+        0.08
+      ]
+    },
+    "green_candle_cake": {
+      "level": 3,
+      "strength": 8,
+      "textures": {
+        "green_candle_lit": [
+          [
+            0,
+            5,
+            1,
+            6
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true,
+      "when": {
+        "lit": "true",
+        "waterlogged": "false"
+      },
+      "color": [
+        1,
+        0.38,
+        0.08
+      ]
+    },
+    "red_candle": {
+      "level": 3,
+      "strength": 8,
+      "textures": {
+        "red_candle_lit": [
+          [
+            0,
+            5,
+            1,
+            6
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true,
+      "levelProperty": "candles",
+      "levels": {
+        "1": 3,
+        "2": 6,
+        "3": 9,
+        "4": 12
+      },
+      "when": {
+        "lit": "true",
+        "waterlogged": "false"
+      },
+      "color": [
+        1,
+        0.38,
+        0.08
+      ]
+    },
+    "red_candle_cake": {
+      "level": 3,
+      "strength": 8,
+      "textures": {
+        "red_candle_lit": [
+          [
+            0,
+            5,
+            1,
+            6
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true,
+      "when": {
+        "lit": "true",
+        "waterlogged": "false"
+      },
+      "color": [
+        1,
+        0.38,
+        0.08
+      ]
+    },
+    "black_candle": {
+      "level": 3,
+      "strength": 8,
+      "textures": {
+        "black_candle_lit": [
+          [
+            0,
+            5,
+            1,
+            6
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true,
+      "levelProperty": "candles",
+      "levels": {
+        "1": 3,
+        "2": 6,
+        "3": 9,
+        "4": 12
+      },
+      "when": {
+        "lit": "true",
+        "waterlogged": "false"
+      },
+      "color": [
+        1,
+        0.38,
+        0.08
+      ]
+    },
+    "black_candle_cake": {
+      "level": 3,
+      "strength": 8,
+      "textures": {
+        "black_candle_lit": [
+          [
+            0,
+            5,
+            1,
+            6
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true,
+      "when": {
+        "lit": "true",
+        "waterlogged": "false"
+      },
+      "color": [
+        1,
+        0.38,
+        0.08
+      ]
+    },
+    "sea_pickle": {
+      "level": 6,
+      "strength": 2,
+      "textures": {
+        "sea_pickle": [
+          [
+            1,
+            0,
+            3,
+            5
+          ],
+          [
+            13,
+            0,
+            15,
+            5
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true,
+      "when": {
+        "waterlogged": "true"
+      },
+      "levelProperty": "pickles",
+      "levels": {
+        "1": 6,
+        "2": 9,
+        "3": 12,
+        "4": 15
+      },
+      "selectors": {
+        "sea_pickle": "pale_green"
+      }
+    },
+    "copper_bulb": {
+      "level": 15,
+      "strength": 2,
+      "textures": {
+        "copper_bulb_lit": [
+          [
+            2,
+            2,
+            14,
+            14
+          ]
+        ],
+        "copper_bulb_lit_powered": [
+          [
+            2,
+            2,
+            14,
+            14
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true,
+      "when": {
+        "lit": "true"
+      },
+      "referenceLevel": 15,
+      "selectors": {
+        "copper_bulb_lit": "gold",
+        "copper_bulb_lit_powered": "gold"
+      }
+    },
+    "waxed_copper_bulb": {
+      "level": 15,
+      "strength": 2,
+      "textures": {
+        "copper_bulb_lit": [
+          [
+            2,
+            2,
+            14,
+            14
+          ]
+        ],
+        "copper_bulb_lit_powered": [
+          [
+            2,
+            2,
+            14,
+            14
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true,
+      "when": {
+        "lit": "true"
+      },
+      "referenceLevel": 15,
+      "selectors": {
+        "copper_bulb_lit": "gold",
+        "copper_bulb_lit_powered": "gold"
+      }
+    },
+    "exposed_copper_bulb": {
+      "level": 12,
+      "strength": 2,
+      "textures": {
+        "exposed_copper_bulb_lit": [
+          [
+            2,
+            2,
+            14,
+            14
+          ]
+        ],
+        "exposed_copper_bulb_lit_powered": [
+          [
+            2,
+            2,
+            14,
+            14
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true,
+      "when": {
+        "lit": "true"
+      },
+      "referenceLevel": 15,
+      "selectors": {
+        "exposed_copper_bulb_lit": "gold",
+        "exposed_copper_bulb_lit_powered": "gold"
+      }
+    },
+    "waxed_exposed_copper_bulb": {
+      "level": 12,
+      "strength": 2,
+      "textures": {
+        "exposed_copper_bulb_lit": [
+          [
+            2,
+            2,
+            14,
+            14
+          ]
+        ],
+        "exposed_copper_bulb_lit_powered": [
+          [
+            2,
+            2,
+            14,
+            14
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true,
+      "when": {
+        "lit": "true"
+      },
+      "referenceLevel": 15,
+      "selectors": {
+        "exposed_copper_bulb_lit": "gold",
+        "exposed_copper_bulb_lit_powered": "gold"
+      }
+    },
+    "weathered_copper_bulb": {
+      "level": 8,
+      "strength": 2,
+      "textures": {
+        "weathered_copper_bulb_lit": [
+          [
+            2,
+            2,
+            14,
+            14
+          ]
+        ],
+        "weathered_copper_bulb_lit_powered": [
+          [
+            2,
+            2,
+            14,
+            14
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true,
+      "when": {
+        "lit": "true"
+      },
+      "referenceLevel": 15,
+      "selectors": {
+        "weathered_copper_bulb_lit": "gold",
+        "weathered_copper_bulb_lit_powered": "gold"
+      }
+    },
+    "waxed_weathered_copper_bulb": {
+      "level": 8,
+      "strength": 2,
+      "textures": {
+        "weathered_copper_bulb_lit": [
+          [
+            2,
+            2,
+            14,
+            14
+          ]
+        ],
+        "weathered_copper_bulb_lit_powered": [
+          [
+            2,
+            2,
+            14,
+            14
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true,
+      "when": {
+        "lit": "true"
+      },
+      "referenceLevel": 15,
+      "selectors": {
+        "weathered_copper_bulb_lit": "gold",
+        "weathered_copper_bulb_lit_powered": "gold"
+      }
+    },
+    "oxidized_copper_bulb": {
+      "level": 4,
+      "strength": 2,
+      "textures": {
+        "oxidized_copper_bulb_lit": [
+          [
+            2,
+            2,
+            14,
+            14
+          ]
+        ],
+        "oxidized_copper_bulb_lit_powered": [
+          [
+            2,
+            2,
+            14,
+            14
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true,
+      "when": {
+        "lit": "true"
+      },
+      "referenceLevel": 15,
+      "selectors": {
+        "oxidized_copper_bulb_lit": "gold",
+        "oxidized_copper_bulb_lit_powered": "gold"
+      }
+    },
+    "waxed_oxidized_copper_bulb": {
+      "level": 4,
+      "strength": 2,
+      "textures": {
+        "oxidized_copper_bulb_lit": [
+          [
+            2,
+            2,
+            14,
+            14
+          ]
+        ],
+        "oxidized_copper_bulb_lit_powered": [
+          [
+            2,
+            2,
+            14,
+            14
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true,
+      "when": {
+        "lit": "true"
+      },
+      "referenceLevel": 15,
+      "selectors": {
+        "oxidized_copper_bulb_lit": "gold",
+        "oxidized_copper_bulb_lit_powered": "gold"
+      }
+    },
+    "furnace": {
+      "level": 13,
+      "strength": 2,
+      "textures": {
+        "furnace_front_on": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ]
+      },
+      "section": "blockEntities",
+      "mask": true,
+      "when": {
+        "lit": "true"
+      },
+      "selectors": {
+        "furnace_front_on": "warm"
+      }
+    },
+    "blast_furnace": {
+      "level": 13,
+      "strength": 2,
+      "textures": {
+        "blast_furnace_front_on": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ]
+      },
+      "section": "blockEntities",
+      "mask": true,
+      "when": {
+        "lit": "true"
+      },
+      "selectors": {
+        "blast_furnace_front_on": "warm"
+      }
+    },
+    "smoker": {
+      "level": 13,
+      "strength": 2,
+      "textures": {
+        "smoker_front_on": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ]
+      },
+      "section": "blockEntities",
+      "mask": true,
+      "when": {
+        "lit": "true"
+      },
+      "selectors": {
+        "smoker_front_on": "warm"
+      }
+    },
+    "campfire": {
+      "level": 15,
+      "strength": 3,
+      "textures": {
+        "campfire_fire": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ],
+        "campfire_log_lit": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ]
+      },
+      "section": "blockEntities",
+      "mask": true,
+      "when": {
+        "lit": "true",
+        "waterlogged": "false"
+      },
+      "selectors": {
+        "campfire_log_lit": "warm"
+      }
+    },
+    "soul_campfire": {
+      "level": 10,
+      "strength": 3,
+      "textures": {
+        "soul_campfire_fire": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ],
+        "soul_campfire_log_lit": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ]
+      },
+      "section": "blockEntities",
+      "mask": true,
+      "when": {
+        "lit": "true",
+        "waterlogged": "false"
+      },
+      "selectors": {
+        "soul_campfire_log_lit": "cyan"
+      }
+    },
+    "fire": {
+      "level": 15,
+      "strength": 3,
+      "textures": {
+        "fire_0": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ],
+        "fire_1": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true
+    },
+    "soul_fire": {
+      "level": 10,
+      "strength": 3,
+      "textures": {
+        "soul_fire_0": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ],
+        "soul_fire_1": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true
+    },
+    "redstone_ore": {
+      "level": 9,
+      "strength": 1.5,
+      "textures": {
+        "redstone_ore": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true,
+      "when": {
+        "lit": "true"
+      },
+      "selectors": {
+        "redstone_ore": "red"
+      }
+    },
+    "deepslate_redstone_ore": {
+      "level": 9,
+      "strength": 1.5,
+      "textures": {
+        "deepslate_redstone_ore": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true,
+      "when": {
+        "lit": "true"
+      },
+      "selectors": {
+        "deepslate_redstone_ore": "red"
+      }
+    },
+    "respawn_anchor": {
+      "level": 15,
+      "strength": 2,
+      "textures": {
+        "respawn_anchor_top": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ],
+        "respawn_anchor_side1": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ],
+        "respawn_anchor_side2": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ],
+        "respawn_anchor_side3": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ],
+        "respawn_anchor_side4": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true,
+      "levelProperty": "charges",
+      "levels": {
+        "0": 0,
+        "1": 3,
+        "2": 7,
+        "3": 11,
+        "4": 15
+      },
+      "referenceLevel": 15,
+      "selectors": {
+        "respawn_anchor_side1": "anchor",
+        "respawn_anchor_side2": "anchor",
+        "respawn_anchor_side3": "anchor",
+        "respawn_anchor_side4": "anchor"
+      }
+    },
+    "jack_o_lantern": {
+      "level": 15,
+      "strength": 2,
+      "textures": {
+        "jack_o_lantern": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true,
+      "selectors": {
+        "jack_o_lantern": "warm"
+      }
+    },
+    "lava_cauldron": {
+      "level": 15,
+      "strength": 1,
+      "textures": {
+        "lava_still": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true
+    },
+    "beacon": {
+      "level": 15,
+      "strength": 2,
+      "textures": {
+        "beacon": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ]
+      },
+      "section": "blockEntities",
+      "mask": true
+    },
+    "conduit": {
+      "level": 15,
+      "strength": 1.5,
+      "textures": {
+        "entity/conduit/base": [
+          [
+            0,
+            0,
+            16,
+            8
+          ]
+        ]
+      },
+      "section": "blockEntities",
+      "mask": true,
+      "selectors": {
+        "entity/conduit/base": "cream"
+      }
+    },
+    "ender_chest": {
+      "level": 7,
+      "strength": 1,
+      "textures": {
+        "entity/chest/ender": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ]
+      },
+      "section": "blockEntities",
+      "mask": true,
+      "selectors": {
+        "entity/chest/ender": "gold"
+      }
+    },
+    "enchanting_table": {
+      "level": 7,
+      "strength": 1,
+      "textures": {
+        "enchanting_table_top": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ],
+        "enchanting_table_side": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ]
+      },
+      "section": "blockEntities",
+      "mask": true,
+      "selectors": {
+        "enchanting_table_top": "cyan",
+        "enchanting_table_side": "cyan"
+      }
+    },
+    "brewing_stand": {
+      "level": 1,
+      "strength": 0.35,
+      "textures": {
+        "brewing_stand": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ]
+      },
+      "section": "blockEntities",
+      "mask": true,
+      "selectors": {
+        "brewing_stand": "warm"
+      }
+    },
+    "dragon_egg": {
+      "level": 1,
+      "strength": 0.35,
+      "textures": {
+        "dragon_egg": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true,
+      "selectors": {
+        "dragon_egg": "purple"
+      }
+    },
+    "end_portal_frame": {
+      "level": 1,
+      "strength": 0.35,
+      "textures": {
+        "end_portal_frame_top": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ],
+        "end_portal_frame_eye": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true,
+      "selectors": {
+        "end_portal_frame_top": "green",
+        "end_portal_frame_eye": "green"
+      }
+    },
+    "amethyst_cluster": {
+      "level": 5,
+      "strength": 1.5,
+      "textures": {
+        "amethyst_cluster": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true
+    },
+    "large_amethyst_bud": {
+      "level": 4,
+      "strength": 1.2,
+      "textures": {
+        "large_amethyst_bud": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true
+    },
+    "medium_amethyst_bud": {
+      "level": 2,
+      "strength": 0.6,
+      "textures": {
+        "medium_amethyst_bud": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true
+    },
+    "small_amethyst_bud": {
+      "level": 1,
+      "strength": 0.3,
+      "textures": {
+        "small_amethyst_bud": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true
+    },
+    "magma_block": {
+      "level": 3,
+      "strength": 0.8,
+      "textures": {
+        "magma": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true,
+      "selectors": {
+        "magma": "warm"
+      }
+    },
+    "crying_obsidian": {
+      "level": 10,
+      "strength": 1.5,
+      "textures": {
+        "crying_obsidian": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true,
+      "selectors": {
+        "crying_obsidian": "purple"
+      }
+    },
+    "nether_portal": {
+      "level": 11,
+      "strength": 2,
+      "textures": {
+        "nether_portal": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true
+    },
+    "brown_mushroom": {
+      "level": 1,
+      "strength": 0.2,
+      "textures": {
+        "brown_mushroom": [
+          [
+            0,
+            0,
+            16,
+            10
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true
+    },
+    "glow_lichen": {
+      "level": 7,
+      "strength": 1,
+      "textures": {
+        "glow_lichen": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ]
+      },
+      "section": "blocks",
+      "mask": true
+    },
+    "sculk_catalyst": {
+      "level": 6,
+      "strength": 1,
+      "textures": {
+        "sculk_catalyst_top": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ],
+        "sculk_catalyst_side": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ],
+        "sculk_catalyst_side_bloom": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ],
+        "sculk_catalyst_top_bloom": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ]
+      },
+      "section": "blockEntities",
+      "mask": true,
+      "selectors": {
+        "sculk_catalyst_top": "cyan",
+        "sculk_catalyst_side": "cyan",
+        "sculk_catalyst_side_bloom": "cyan",
+        "sculk_catalyst_top_bloom": "cyan"
+      }
+    },
+    "sculk_sensor": {
+      "level": 1,
+      "strength": 0.35,
+      "textures": {
+        "sculk_sensor_tendril_inactive": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ],
+        "sculk_sensor_tendril_active": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ],
+        "sculk_sensor_top": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ],
+        "sculk_sensor_side": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ]
+      },
+      "section": "blockEntities",
+      "mask": true,
+      "selectors": {
+        "sculk_sensor_tendril_inactive": "sensor",
+        "sculk_sensor_tendril_active": "sensor",
+        "sculk_sensor_top": "sensor",
+        "sculk_sensor_side": "sensor"
+      }
+    },
+    "calibrated_sculk_sensor": {
+      "level": 1,
+      "strength": 0.35,
+      "textures": {
+        "calibrated_sculk_sensor_input_side": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ],
+        "calibrated_sculk_sensor_amethyst": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ],
+        "calibrated_sculk_sensor_top": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ],
+        "sculk_sensor_tendril_active": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ],
+        "sculk_sensor_tendril_inactive": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ]
+      },
+      "section": "blockEntities",
+      "mask": true,
+      "selectors": {
+        "calibrated_sculk_sensor_input_side": "sensor",
+        "calibrated_sculk_sensor_amethyst": "sensor",
+        "calibrated_sculk_sensor_top": "sensor",
+        "sculk_sensor_tendril_active": "sensor",
+        "sculk_sensor_tendril_inactive": "sensor"
+      }
+    },
+    "trial_spawner": {
+      "level": 8,
+      "strength": 1.8,
+      "textures": {
+        "trial_spawner_top_active": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ],
+        "trial_spawner_top_ejecting_reward_ominous": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ],
+        "trial_spawner_side_active_ominous": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ],
+        "trial_spawner_side_inactive_ominous": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ],
+        "trial_spawner_top_inactive_ominous": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ],
+        "trial_spawner_top_ejecting_reward": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ],
+        "trial_spawner_top_inactive": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ],
+        "trial_spawner_top_active_ominous": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ],
+        "trial_spawner_side_inactive": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ],
+        "trial_spawner_side_active": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ]
+      },
+      "section": "blockEntities",
+      "mask": true,
+      "levelProperty": "trial_spawner_state",
+      "levels": {
+        "inactive": 0,
+        "cooldown": 0,
+        "waiting_for_players": 4,
+        "active": 8,
+        "waiting_for_reward_ejection": 8,
+        "ejecting_reward": 8
+      },
+      "referenceLevel": 8,
+      "selectors": {
+        "trial_spawner_top_active": "trial",
+        "trial_spawner_top_ejecting_reward_ominous": "trial",
+        "trial_spawner_side_active_ominous": "trial",
+        "trial_spawner_side_inactive_ominous": "trial",
+        "trial_spawner_top_inactive_ominous": "trial",
+        "trial_spawner_top_ejecting_reward": "trial",
+        "trial_spawner_top_inactive": "trial",
+        "trial_spawner_top_active_ominous": "trial",
+        "trial_spawner_side_inactive": "trial",
+        "trial_spawner_side_active": "trial"
+      }
+    },
+    "vault": {
+      "level": 12,
+      "strength": 1.8,
+      "textures": {
+        "vault_top_ominous": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ],
+        "vault_front_ejecting_ominous": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ],
+        "vault_side_off": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ],
+        "vault_top_ejecting": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ],
+        "vault_front_off": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ],
+        "vault_top": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ],
+        "vault_side_off_ominous": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ],
+        "vault_side_on_ominous": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ],
+        "vault_front_on_ominous": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ],
+        "vault_top_ejecting_ominous": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ],
+        "vault_front_off_ominous": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ],
+        "vault_front_on": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ],
+        "vault_front_ejecting": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ],
+        "vault_side_on": [
+          [
+            0,
+            0,
+            16,
+            16
+          ]
+        ]
+      },
+      "section": "blockEntities",
+      "mask": true,
+      "levelProperty": "vault_state",
+      "levels": {
+        "inactive": 6,
+        "active": 12,
+        "unlocking": 12,
+        "ejecting": 12
+      },
+      "referenceLevel": 12,
+      "selectors": {
+        "vault_top_ominous": "trial",
+        "vault_front_ejecting_ominous": "trial",
+        "vault_side_off": "trial",
+        "vault_top_ejecting": "trial",
+        "vault_front_off": "trial",
+        "vault_top": "trial",
+        "vault_side_off_ominous": "trial",
+        "vault_side_on_ominous": "trial",
+        "vault_front_on_ominous": "trial",
+        "vault_top_ejecting_ominous": "trial",
+        "vault_front_off_ominous": "trial",
+        "vault_front_on": "trial",
+        "vault_front_ejecting": "trial",
+        "vault_side_on": "trial"
+      }
+    },
+    "firefly_bush": {
+      "level": 2,
+      "strength": 1,
+      "textures": {},
+      "section": "blocks",
+      "mode": "native",
+      "visualOnly": false
+    },
+    "open_eyeblossom": {
+      "level": 0,
+      "strength": 1,
+      "textures": {},
+      "section": "blocks",
+      "mode": "native",
+      "visualOnly": true
+    }
+  },
+  "lanterns": {
+    "lantern": {
+      "texture": "lantern",
+      "color": [
+        1,
+        0.38,
+        0.1
+      ]
+    },
+    "soul_lantern": {
+      "texture": "soul_lantern",
+      "color": [
+        0.08,
+        0.65,
+        1
+      ]
+    },
+    "copper_lantern": {
+      "texture": "copper_lantern",
+      "color": [
+        0.4,
+        1,
+        0.32
+      ]
+    },
+    "waxed_copper_lantern": {
+      "texture": "copper_lantern",
+      "color": [
+        0.4,
+        1,
+        0.32
+      ]
+    },
+    "exposed_copper_lantern": {
+      "texture": "exposed_copper_lantern",
+      "color": [
+        0.4,
+        1,
+        0.32
+      ]
+    },
+    "waxed_exposed_copper_lantern": {
+      "texture": "exposed_copper_lantern",
+      "color": [
+        0.4,
+        1,
+        0.32
+      ]
+    },
+    "weathered_copper_lantern": {
+      "texture": "weathered_copper_lantern",
+      "color": [
+        0.4,
+        1,
+        0.32
+      ]
+    },
+    "waxed_weathered_copper_lantern": {
+      "texture": "weathered_copper_lantern",
+      "color": [
+        0.4,
+        1,
+        0.32
+      ]
+    },
+    "oxidized_copper_lantern": {
+      "texture": "oxidized_copper_lantern",
+      "color": [
+        0.4,
+        1,
+        0.32
+      ]
+    },
+    "waxed_oxidized_copper_lantern": {
+      "texture": "oxidized_copper_lantern",
+      "color": [
+        0.4,
+        1,
+        0.32
+      ]
+    }
+  }
+}

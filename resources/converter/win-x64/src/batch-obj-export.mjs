@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { lanternLightingManifest } from './lantern-lighting.mjs'
+import { emissiveManifest, emissiveBlockKey } from './emissive-blocks.mjs'
 import { decorateBlockModel, cleanSurfaces } from './surface-geometry.mjs'
 import { cullTranslucentContactFaces } from './contact-culling.mjs'
 import { composeBannerTexture } from './banner-texture.mjs'
@@ -1936,7 +1938,7 @@ async function prepareAtlas(outputDir, resources) {
 
 // ─── OBJ/MTL 序列化 ────────────────────────────────────
 
-function serializeObjMtl(sectionMap, mtlFileName) {
+function serializeObjMtl(sectionMap, mtlFileName, emissives) {
   const objLines = [`# MCBlock Batch OBJ Export`, `mtllib ${mtlFileName}`, '']
   const mtlLines = [`# MCBlock Materials`]
 
@@ -2009,6 +2011,10 @@ function serializeObjMtl(sectionMap, mtlFileName) {
         seenQuadKeys.add(dedupeKey)
 
         const verts = quad.vertices()
+        if (Number.isFinite(quad.m2bBlockEmission)) {
+          emissives.surfaces.push({section,material:matName,normal:Object.values(getQuadFlatNormal(quad)),
+            weight:quad.m2bBlockEmission,vertices:verts.map(v=>[v.pos.x,v.pos.y,v.pos.z,...[v.texture?.[0]??0,1-(v.texture?.[1]??0)]].map(n=>Number(n.toFixed(6))))})
+        }
         if (quad.m2bSurface) {
           const meta = quad.m2bSurface
           const toUV = p => [p[0], 1 - p[1]]
@@ -2124,8 +2130,15 @@ async function processLitematic(litematicPath, outputDir, resources, sharedAtlas
   }
 
   // 按「分区 → blockId」分组：分区决定 OBJ 里的 `o` 对象，blockId 决定材质
+  const emissives = emissiveManifest(model, resources, options)
+  const emissionStates = new Map(emissives.blocks.map(b=>[emissiveBlockKey('minecraft:'+b.id,b.position),b.weight]))
   const sectionMap = new Map()
-  for (const { quad, blockId: sourceBlockId, section } of allQuads) {
+  for (const { quad, blockId: sourceBlockId, section, position } of allQuads) {
+    const name = sourceBlockId.replace(/^minecraft:/,'')
+    if (emissives.materials[name]) {
+      const weight = emissionStates.get(emissiveBlockKey(sourceBlockId,position))
+      if (weight !== undefined) quad.m2bBlockEmission = weight
+    }
     const blockId = sourceBlockId === 'minecraft:water_cauldron'
       ? sourceBlockId + (/water_(still|flow)/.test(quad.m2bTextureId ?? '') ? '__water' : '__opaque')
       : sourceBlockId
@@ -2159,13 +2172,18 @@ async function processLitematic(litematicPath, outputDir, resources, sharedAtlas
   }
 
   const mtlName = `${fileName}.mtl`
-  const { obj, mtl, surfaceManifest } = serializeObjMtl(sectionMap, mtlName)
+  const { obj, mtl, surfaceManifest } = serializeObjMtl(sectionMap, mtlName, emissives)
 
   const objPath = path.join(buildingDir, `${fileName}.obj`)
   const mtlPath = path.join(buildingDir, mtlName)
   fs.writeFileSync(objPath, obj, 'utf8')
   fs.writeFileSync(mtlPath, mtl, 'utf8')
   fs.writeFileSync(path.join(buildingDir, `${fileName}.surfaces.json`), JSON.stringify(surfaceManifest), 'utf8')
+  fs.writeFileSync(path.join(buildingDir, `${fileName}.lanterns.json`), JSON.stringify(lanternLightingManifest(model, resources, options)), 'utf8')
+  fs.writeFileSync(path.join(buildingDir, `${fileName}.emissives.json`), JSON.stringify(emissives), 'utf8')
+  if (Object.values(emissives.materials).some(m=>m.mask)) {
+    fs.copyFileSync(new URL('../assets/emissive-mask.png',import.meta.url),path.join(buildingDir,'emissive-mask.png'))
+  }
 
   let matCount = 0
   const sectionCounts = {}
