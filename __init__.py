@@ -1,7 +1,7 @@
 bl_info = {
     "name": "Mine2Blend",
     "author": "MCBlock",
-    "version": (0, 5, 3),
+    "version": (0, 5, 6),
     "blender": (4, 2, 0),
     "location": "3D 视图 > 侧栏 > MCBlock",
     "description": "我的世界投影导入 Blender 插件，支持 Litematic 与 Schematic(.schem)",
@@ -18,6 +18,7 @@ _SUBMODULES = (
     "core.converter_bridge",
     "core.material_utils",
     "core.material_audit",
+    "core.surface_utils",
     "core.blender_importer",
     "core.diagnostics",
     "operators.import_ops",

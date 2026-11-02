@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+import { decorateBlockModel, cleanSurfaces } from './surface-geometry.mjs'
+import { cullTranslucentContactFaces } from './contact-culling.mjs'
+import { composeBannerTexture } from './banner-texture.mjs'
 /**
  * 批量 Litematic → OBJ + MTL + 独立纹理 导出工具
  *
@@ -503,12 +506,8 @@ function isOpaqueFullBlock(blockId) {
 
 function isTranslucentBlock(blockId) {
   const name = blockId.replace('minecraft:', '')
+  if (['packed_ice', 'blue_ice', 'water_cauldron'].includes(name)) return false
   return TRANSLUCENT_KEYWORDS.some(keyword => name.includes(keyword))
-}
-
-function isOpaqueContactBlock(blockId) {
-  // grass_block 被宽泛的 grass 关键词排除，但它本身是完整实心方块。
-  return blockId === 'minecraft:grass_block' || isOpaqueFullBlock(blockId)
 }
 
 function getBiomeTintColor(blockId) {
@@ -560,62 +559,6 @@ function getQuadFlatNormal(quad) {
   const len = Math.hypot(nx, ny, nz)
   if (len <= 1e-8) return null
   return { x: nx / len, y: ny / len, z: nz / len }
-}
-
-function getContactFace(quad, position) {
-  if (!position) return null
-  const vertices = quad.vertices()
-  if (vertices.length !== 4) return null
-  const normal = getQuadFlatNormal(quad)
-  if (!normal) return null
-  const axes = ['x', 'y', 'z']
-  const axis = axes.findIndex(name => Math.abs(normal[name]) > 0.999999)
-  if (axis < 0) return null
-  const coordinate = axes[axis]
-  const plane = vertices[0].pos[coordinate]
-  if (!vertices.every(vertex => Math.abs(vertex.pos[coordinate] - plane) < 1e-6)) return null
-  const side = Math.abs(plane - position[axis]) < 1e-6 ? -1
-    : Math.abs(plane - position[axis] - 1) < 1e-6 ? 1 : 0
-  if (!side) return null
-  const key = vertices.map(vertex => axes.map(name => Math.round(vertex.pos[name] * 1e6)).join(','))
-    .sort().join('|')
-  return { key, axis, side, normal }
-}
-
-function cullTranslucentContactFaces(quads) {
-  const facesByGeometry = new Map()
-  for (let index = 0; index < quads.length; index++) {
-    const entry = quads[index]
-    const face = getContactFace(entry.quad, entry.position)
-    if (!face) continue
-    if (!facesByGeometry.has(face.key)) facesByGeometry.set(face.key, [])
-    facesByGeometry.get(face.key).push({ index, entry, face })
-  }
-
-  const removed = new Set()
-  for (const group of facesByGeometry.values()) {
-    if (group.length < 2) continue
-    for (let i = 0; i < group.length - 1; i++) {
-      for (let j = i + 1; j < group.length; j++) {
-        const a = group[i]
-        const b = group[j]
-        if (a.face.axis !== b.face.axis || a.face.side !== -b.face.side) continue
-        const axis = a.face.axis
-        if (a.entry.position[axis] + a.face.side !== b.entry.position[axis]) continue
-        if ([0, 1, 2].some(other => other !== axis &&
-          a.entry.position[other] !== b.entry.position[other])) continue
-        const an = a.face.normal
-        const bn = b.face.normal
-        if (an.x * bn.x + an.y * bn.y + an.z * bn.z > -0.999999) continue
-
-        const aTransparent = isTranslucentBlock(a.entry.blockId)
-        const bTransparent = isTranslucentBlock(b.entry.blockId)
-        if (aTransparent && (bTransparent || isOpaqueContactBlock(b.entry.blockId))) removed.add(a.index)
-        if (bTransparent && (aTransparent || isOpaqueContactBlock(a.entry.blockId))) removed.add(b.index)
-      }
-    }
-  }
-  return quads.filter((_, index) => !removed.has(index))
 }
 
 function isTintedQuad(quad) {
@@ -1093,7 +1036,7 @@ async function loadMcResources() {
   const blockModelMap = new Map()
   for (const [key, value] of Object.entries(blockModelData)) {
     const fullKey = key.startsWith('minecraft:') ? key : `minecraft:${key}`
-    try { blockModelMap.set(fullKey, BlockModel.fromJson(value)) } catch {}
+    try { blockModelMap.set(fullKey, decorateBlockModel(BlockModel.fromJson(value))) } catch {}
   }
   const blockModelProvider = {
     getBlockModel(id) { return blockModelMap.get(id.toString()) ?? null },
@@ -1301,10 +1244,23 @@ function createSizedBoxMesh(color, ox, oy, oz, w, h, d) {
   return new DsMesh(quads)
 }
 
-function createBannerMesh(blockId, properties = {}, atlas = null) {
+function createBannerMesh(blockId, properties = {}, atlas = null, bannerTextures = new Map()) {
   const name = blockId.replace('minecraft:', '')
   const isWall = name.includes('wall_banner')
-  const clothColor = extractBannerColor(blockId, properties)
+  const baseColor = extractBannerColor(blockId, properties)
+  const patterns = deserializeBannerPatterns(properties[BANNER_PATTERNS_PROP])
+  let composite = null
+  if (patterns.length > 0) {
+    const key = JSON.stringify([baseColor, patterns])
+    composite = bannerTextures.get(key)
+    if (!composite) {
+      composite = composeBannerTexture(atlas.getTextureAtlas(), getAtlasTextureUV({ atlas }, BANNER_BASE_TEXTURE), baseColor,
+        patterns.map(pattern => ({ uv: getAtlasTextureUV({ atlas }, `minecraft:entity/banner/${pattern.pattern}`),
+          color: BANNER_DYE_COLORS[pattern.color] ?? BANNER_DYE_COLORS.white })))
+      bannerTextures.set(key, composite)
+    }
+  }
+  const clothColor = composite ? [1, 1, 1] : baseColor
   const woodColor = [0.45, 0.30, 0.20]
   // 杆（立柱 / 横杆）用不透明纯色纹理打底：atlas 里 banner/base 只打包了布料那一块，
   // 立柱与横杆对应的分区实测 alpha 全 0，贴上去整根杆会消失。
@@ -1317,7 +1273,7 @@ function createBannerMesh(blockId, properties = {}, atlas = null) {
   //   · 全 atlas 只有 6 个纯白且不透明的像素，都在纹理边角，靠不住。
   // banner/base 的布料 6 面实测 alpha 全 255、亮度 209~246，本来就是 MC 拿来 ×dye
   // 得到旗帜颜色的那张底纹，那点织纹是原版该有的观感。
-  const clothUv = (faceUv) => getAtlasTextureSubUV({ atlas }, BANNER_BASE_TEXTURE, faceUv) ?? uv
+  const clothUv = (faceUv) => composite ? faceUv.map(value => value / 16) : getAtlasTextureSubUV({ atlas }, BANNER_BASE_TEXTURE, faceUv) ?? uv
   const quads = []
   const fx0 = 1 / 12
   const fx1 = 11 / 12
@@ -1341,22 +1297,7 @@ function createBannerMesh(blockId, properties = {}, atlas = null) {
   addFace(quads, [[fx0, fy1, fz0], [fx0, fy0, fz0], [fx0, fy0, fz1], [fx0, fy1, fz1]], [-1, 0, 0], clothColor, clothUv(BANNER_CLOTH_EDGE_MIN_X_UV))
   addFace(quads, [[fx1, fy1, fz1], [fx1, fy0, fz1], [fx1, fy0, fz0], [fx1, fy1, fz0]], [1, 0, 0], clothColor, clothUv(BANNER_CLOTH_EDGE_MAX_X_UV))
 
-  const patterns = deserializeBannerPatterns(properties[BANNER_PATTERNS_PROP])
-  for (let i = 0; i < patterns.length; i++) {
-    const pattern = patterns[i]
-    const patternColor = BANNER_DYE_COLORS[pattern.color] ?? BANNER_DYE_COLORS.white
-    const textureId = `minecraft:entity/banner/${pattern.pattern}`
-    const frontPatternUV = getAtlasTextureSubUV({ atlas }, textureId, BANNER_FRONT_FACE_UV)
-    const backPatternUV = getAtlasTextureSubUV({ atlas }, textureId, BANNER_BACK_FACE_UV)
-    if (!frontPatternUV && !backPatternUV) continue
-    const epsilon = (i + 1) * 0.0008
-    if (frontPatternUV) {
-      addFace(quads, [[fx0, fy1, fz1 + epsilon], [fx0, fy0, fz1 + epsilon], [fx1, fy0, fz1 + epsilon], [fx1, fy1, fz1 + epsilon]], [0, 0, 1], patternColor, frontPatternUV)
-    }
-    if (backPatternUV) {
-      addFace(quads, [[fx1, fy1, fz0 - epsilon], [fx1, fy0, fz0 - epsilon], [fx0, fy0, fz0 - epsilon], [fx0, fy1, fz0 - epsilon]], [0, 0, -1], patternColor, backPatternUV, true)
-    }
-  }
+  if (composite) for (const quad of quads) quad.m2bTextureFile = composite.file
 
   pushTexturedBox(quads, bar[0], bar[1], bar[2], bar[3], bar[4], bar[5], woodColor, uv)
   if (!isWall) pushTexturedBox(quads, 11 / 24, 0, 11 / 24, 13 / 24, 7 / 4, 13 / 24, woodColor, uv)
@@ -1814,7 +1755,7 @@ function createProjectionEntityMesh(entity, atlas) {
   return built
 }
 
-function createEntityFallbackMesh(blockId, properties = {}, atlas = null) {
+function createEntityFallbackMesh(blockId, properties = {}, atlas = null, bannerTextures = new Map()) {
   const name = blockId.replace('minecraft:', '')
 
   // 头颅与潮涌核心走 deepslate special renderer（带真实 entity/ 贴图 UV）。
@@ -1829,7 +1770,7 @@ function createEntityFallbackMesh(blockId, properties = {}, atlas = null) {
   }
 
   if (/(^|_)banner$/.test(name) || /(^|_)wall_banner$/.test(name)) {
-    return createBannerMesh(blockId, properties, atlas)
+    return createBannerMesh(blockId, properties, atlas, bannerTextures)
   }
   for (const [keyword, color] of Object.entries(ENTITY_BLOCK_COLORS)) {
     if (name.includes(keyword)) {
@@ -1895,7 +1836,7 @@ function buildGeometry(model, resources, options = {}) {
       const rotatedSign = !isBanner ? createRotatedSignMesh(blockId, props, atlas) : null
 
       if (isBanner) {
-        mesh = createEntityFallbackMesh(blockId, props, atlas) ?? createFallbackMesh()
+        mesh = createEntityFallbackMesh(blockId, props, atlas, resources.bannerTextures) ?? createFallbackMesh()
       } else if (rotatedSign) {
         // 立式 / 悬挂告示牌：绕开 blockstate 的 element rotation（deepslate 方向反）
         mesh = rotatedSign
@@ -1917,7 +1858,7 @@ function buildGeometry(model, resources, options = {}) {
     }
 
     if (mesh.quads.length === 0) {
-      const entityMesh = createEntityFallbackMesh(blockId, props, atlas)
+      const entityMesh = createEntityFallbackMesh(blockId, props, atlas, resources.bannerTextures)
       if (entityMesh) mesh = entityMesh
       else continue
     }
@@ -1961,7 +1902,7 @@ function buildGeometry(model, resources, options = {}) {
   }
 
   return {
-    quads: options.cullTranslucentOverlap ? cullTranslucentContactFaces(allQuads) : allQuads,
+    quads: cleanSurfaces(options.cullTranslucentOverlap ? cullTranslucentContactFaces(allQuads, { isTranslucentBlock, textureAtlas: atlas.getTextureAtlas() }) : allQuads),
     entityStats,
   }
 }
@@ -2017,6 +1958,7 @@ function serializeObjMtl(sectionMap, mtlFileName) {
   }
   const getMaterialAlpha = (blockId) => {
     const name = blockId.replace('minecraft:', '')
+    if (['packed_ice', 'blue_ice'].includes(name) || name.includes('__opaque')) return 1
     if (/tinted_glass/.test(name)) return 0.32
     if (/(stained_glass|glass_pane|glass)/.test(name)) return 0.38
     if (/water/.test(name)) return 0.45
@@ -2035,6 +1977,7 @@ function serializeObjMtl(sectionMap, mtlFileName) {
     return parts.sort().join(';')
   }
 
+  const surfaceManifest = { version: 1, surfaces: [] }
   const allVertices = []
   const allUVs = []
   const faceGroups = []
@@ -2047,12 +1990,16 @@ function serializeObjMtl(sectionMap, mtlFileName) {
     const buckets = new Map()
     for (const quad of quads) {
       const colorKey = getQuadColorKey(quad)
-      if (!buckets.has(colorKey)) buckets.set(colorKey, [])
-      buckets.get(colorKey).push(quad)
+      const textureFile = quad.m2bTextureFile ?? 'atlas.png'
+      const key = `${colorKey}|${textureFile}`
+      if (!buckets.has(key)) buckets.set(key, { colorKey, textureFile, quads: [] })
+      buckets.get(key).quads.push(quad)
     }
 
-    for (const [colorKey, bucketQuads] of buckets.entries()) {
-      const matName = buckets.size > 1 ? `${baseMatName}_c_${colorKey}` : baseMatName
+    for (const { colorKey, textureFile, quads: bucketQuads } of buckets.values()) {
+      const textureSuffix = textureFile === 'atlas.png' ? '' : `__b_${textureFile.slice(7, 27)}`
+      const textureMatName = baseMatName + textureSuffix
+      const matName = buckets.size > 1 ? `${textureMatName}_c_${colorKey}` : textureMatName
       const faces = []
       const seenQuadKeys = new Set()
 
@@ -2062,6 +2009,14 @@ function serializeObjMtl(sectionMap, mtlFileName) {
         seenQuadKeys.add(dedupeKey)
 
         const verts = quad.vertices()
+        if (quad.m2bSurface) {
+          const meta = quad.m2bSurface
+          const toUV = p => [p[0], 1 - p[1]]
+          surfaceManifest.surfaces.push({section, material: matName, normal: Object.values(getQuadFlatNormal(quad)), vertices: verts.map((v, i) =>
+            [v.pos.x, v.pos.y, v.pos.z, ...toUV(v.texture ?? [0, 0]), ...toUV(meta.backUV[i]),
+              ...toUV(meta.emissionFrontUV[i]), ...toUV(meta.emissionBackUV[i]), meta.strengthFront, meta.strengthBack]
+              .map(n => Number(n.toFixed(6))))})
+        }
         const quadVerts = []
 
         for (const v of verts) {
@@ -2088,7 +2043,7 @@ function serializeObjMtl(sectionMap, mtlFileName) {
         faces.push([quadVerts[0], quadVerts[2], quadVerts[3]])
       }
 
-      faceGroups.push({ section, matName, faces, diffuse: getQuadDiffuse(bucketQuads), alpha: getMaterialAlpha(blockId) })
+      faceGroups.push({ section, matName, faces, diffuse: getQuadDiffuse(bucketQuads), alpha: getMaterialAlpha(blockId), textureFile })
     }
   }
   }
@@ -2111,7 +2066,7 @@ function serializeObjMtl(sectionMap, mtlFileName) {
   objLines.push('')
 
   let currentSection = null
-  for (const { section, matName, faces, diffuse, alpha } of faceGroups) {
+  for (const { section, matName, faces, diffuse, alpha, textureFile } of faceGroups) {
     // 每个分区一个 `o` 对象，Blender 侧据此分子集合（材质名前缀是兜底判据）
     if (section !== currentSection) {
       currentSection = section
@@ -2132,10 +2087,10 @@ function serializeObjMtl(sectionMap, mtlFileName) {
     mtlLines.push(`Ks 0.0 0.0 0.0`)
     mtlLines.push(`d ${alpha.toFixed(2)}`)
     mtlLines.push(`illum 1`)
-    mtlLines.push(`map_Kd atlas.png`)
+    mtlLines.push(`map_Kd ${textureFile}`)
   }
 
-  return { obj: objLines.join('\n'), mtl: mtlLines.join('\n') }
+  return { obj: objLines.join('\n'), mtl: mtlLines.join('\n'), surfaceManifest }
 }
 
 // ─── 主处理流程 ──────────────────────────────────────────
@@ -2161,7 +2116,8 @@ async function processLitematic(litematicPath, outputDir, resources, sharedAtlas
 
   console.log(`  方块数: ${model.totalBlockCount}, 尺寸: ${model.size.join('×')}`)
 
-  const { quads: allQuads, entityStats } = buildGeometry(model, resources, options)
+  const bannerTextures = new Map()
+  const { quads: allQuads, entityStats } = buildGeometry(model, { ...resources, bannerTextures }, options)
   if (allQuads.length === 0) {
     console.log(`  ⊘ 无几何体生成，跳过`)
     return false
@@ -2169,7 +2125,10 @@ async function processLitematic(litematicPath, outputDir, resources, sharedAtlas
 
   // 按「分区 → blockId」分组：分区决定 OBJ 里的 `o` 对象，blockId 决定材质
   const sectionMap = new Map()
-  for (const { quad, blockId, section } of allQuads) {
+  for (const { quad, blockId: sourceBlockId, section } of allQuads) {
+    const blockId = sourceBlockId === 'minecraft:water_cauldron'
+      ? sourceBlockId + (/water_(still|flow)/.test(quad.m2bTextureId ?? '') ? '__water' : '__opaque')
+      : sourceBlockId
     if (!sectionMap.has(section)) sectionMap.set(section, new Map())
     const blockIdQuadMap = sectionMap.get(section)
     if (!blockIdQuadMap.has(blockId)) blockIdQuadMap.set(blockId, [])
@@ -2178,6 +2137,14 @@ async function processLitematic(litematicPath, outputDir, resources, sharedAtlas
 
   const buildingDir = path.join(outputDir, fileName)
   fs.mkdirSync(buildingDir, { recursive: true })
+
+  const writtenBannerTextures = new Set()
+  for (const texture of bannerTextures.values()) {
+    if (writtenBannerTextures.has(texture.file)) continue
+    await sharp(texture.data, { raw: { width: texture.width, height: texture.height, channels: 4 } })
+      .png().toFile(path.join(buildingDir, texture.file))
+    writtenBannerTextures.add(texture.file)
+  }
 
   // 复制 atlas 到建筑目录
   const localAtlas = path.join(buildingDir, 'atlas.png')
@@ -2192,12 +2159,13 @@ async function processLitematic(litematicPath, outputDir, resources, sharedAtlas
   }
 
   const mtlName = `${fileName}.mtl`
-  const { obj, mtl } = serializeObjMtl(sectionMap, mtlName)
+  const { obj, mtl, surfaceManifest } = serializeObjMtl(sectionMap, mtlName)
 
   const objPath = path.join(buildingDir, `${fileName}.obj`)
   const mtlPath = path.join(buildingDir, mtlName)
   fs.writeFileSync(objPath, obj, 'utf8')
   fs.writeFileSync(mtlPath, mtl, 'utf8')
+  fs.writeFileSync(path.join(buildingDir, `${fileName}.surfaces.json`), JSON.stringify(surfaceManifest), 'utf8')
 
   let matCount = 0
   const sectionCounts = {}

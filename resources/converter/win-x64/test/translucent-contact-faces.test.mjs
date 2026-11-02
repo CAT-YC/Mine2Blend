@@ -6,6 +6,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { after, before, test } from 'node:test'
 import { NbtByteArray, NbtCompound, NbtFile, NbtInt, NbtShort } from 'deepslate'
+import sharp from 'sharp'
 
 const converterDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const converter = path.join(converterDir, 'src', 'batch-obj-export.mjs')
@@ -26,6 +27,7 @@ const positions = new Map([
 let temporaryDir
 let baseline
 let optimized
+let texture
 
 function writeFixture(filename) {
   const palette = new NbtCompound()
@@ -51,11 +53,13 @@ function writeFixture(filename) {
 function readQuads(filename) {
   const vertices = []
   const normals = []
+  const uvs = []
   const quads = []
   let material = ''
   let firstFace = null
   for (const line of fs.readFileSync(filename, 'utf8').split('\n')) {
     if (line.startsWith('v ')) vertices.push(line.slice(2).trim().split(/\s+/).map(Number))
+    else if (line.startsWith('vt ')) uvs.push(line.slice(3).trim().split(/\s+/).map(Number))
     else if (line.startsWith('vn ')) normals.push(line.slice(3).trim().split(/\s+/).map(Number))
     else if (line.startsWith('usemtl ')) material = line.slice(7).trim()
     else if (line.startsWith('f ')) {
@@ -63,7 +67,7 @@ function readQuads(filename) {
       if (!firstFace) { firstFace = face; continue }
       const refs = [...firstFace, ...face]
       const points = [...new Set(refs.map(ref => ref[0]))].map(index => vertices[index - 1])
-      quads.push({ material, points, normal: normals[face[0][2] - 1] })
+      quads.push({ material, points, uv: [...firstFace, face[2]].map(r => uvs[r[1] - 1]), normal: normals[face[0][2] - 1] })
       firstFace = null
     }
   }
@@ -77,7 +81,7 @@ function interfaceFaces(quads, x) {
     Math.abs(quad.normal[0]) > 0.99)
 }
 
-before(() => {
+before(async () => {
   temporaryDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mine2blend-contact-faces-'))
   const input = path.join(temporaryDir, 'fixture.schem')
   writeFixture(input)
@@ -90,6 +94,7 @@ before(() => {
     if (name === 'baseline') baseline = quads
     else optimized = quads
   }
+  texture = await sharp(path.join(temporaryDir, 'optimized/fixture/atlas.png')).ensureAlpha().raw().toBuffer({resolveWithObject:true})
 })
 
 after(() => {
@@ -110,10 +115,25 @@ test('玻璃贴实心方块时只删除玻璃侧内面', () => {
   assert.deepEqual(interfaceFaces(optimized, 5).map(face => face.material), ['quartz_block'])
 })
 
-test('普通方块和透明裁切方块仍保留可编辑的接触面', () => {
+test('普通方块保编辑内面，树叶不透明部分裁玻璃而镂空处保玻璃', () => {
   assert.equal(interfaceFaces(optimized, 9).length, 2, '石头内部面保持现有编辑语义')
-  assert.deepEqual(interfaceFaces(optimized, 13).map(face => face.material).sort(),
-    ['black_stained_glass', 'oak_leaves'])
+  const leaf = interfaceFaces(baseline, 13).find(q => q.material === 'oak_leaves')
+  assert.deepEqual(interfaceFaces(optimized, 13).filter(q => q.material === 'oak_leaves'), [leaf], '叶片完整几何和UV保持')
+  const glass = interfaceFaces(optimized, 13).filter(q => q.material === 'black_stained_glass')
+  const [a,b,,d] = leaf.points, edge = p => p.map((n,k)=>n-a[k])
+  const e=edge(b),f=edge(d),dot=(u,v)=>u.reduce((s,n,k)=>s+n*v[k],0)
+  let holes=0,solid=0
+  for(let iy=0;iy<64;iy++)for(let iz=0;iz<64;iz++){
+    const y=(iy+.5)/64,z=(iz+.5)/64,delta=edge([13,y,z])
+    const s=dot(delta,e)/dot(e,e),t=dot(delta,f)/dot(f,f)
+    const uv=leaf.uv[0].map((n,k)=>n+s*(leaf.uv[1][k]-n)+t*(leaf.uv[3][k]-n))
+    const x=Math.floor(uv[0]*texture.info.width),ty=Math.floor((1-uv[1])*texture.info.height)
+    const want=texture.data[(ty*texture.info.width+x)*4+3]<255
+    const kept=glass.some(q=>y>Math.min(...q.points.map(p=>p[1]))&&y<Math.max(...q.points.map(p=>p[1]))&&z>Math.min(...q.points.map(p=>p[2]))&&z<Math.max(...q.points.map(p=>p[2])))
+    assert.equal(kept,want,`叶片像素覆盖 y=${y},z=${z}`)
+    if(want)holes++;else solid++
+  }
+  assert.ok(holes>0&&solid>0,'必须同时覆盖镂空和叶片实体像素')
 })
 
 test('红石线的同向材质叠层不受透明内面剔除影响', () => {

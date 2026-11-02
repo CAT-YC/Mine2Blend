@@ -162,9 +162,14 @@ class MINE2BLEND_OT_import_litematic(bpy.types.Operator):
             return {"CANCELLED"}
 
         collection_name = path_utils.collection_name_for_source(settings.collection_prefix, source_path)
-        if settings.clear_before_import:
-            _set_progress(context, "替换同名旧对象", 45)
-            settings.last_cleared_object_count = blender_importer.clear_collection_by_name(collection_name)
+        replacement_target = bpy.data.collections.get(collection_name) if settings.clear_before_import else None
+        import_collection_name = collection_name
+        if replacement_target is not None:
+            import_collection_name = collection_name[:40] + "_importing"
+            suffix = 1
+            while any(c.name == import_collection_name or c.name.startswith(import_collection_name + "_") for c in bpy.data.collections):
+                import_collection_name = collection_name[:40] + f"_importing_{suffix}"
+                suffix += 1
 
         try:
             _set_progress(context, "导入 OBJ 到 Blender", 60)
@@ -172,7 +177,7 @@ class MINE2BLEND_OT_import_litematic(bpy.types.Operator):
             placeholders = converter_result.metadata.get("entityPlaceholders")
             import_result = blender_importer.import_obj_file(
                 converter_result.obj_path,
-                collection_name=collection_name,
+                collection_name=import_collection_name,
                 scale_factor=settings.scale_factor,
                 center_model=settings.center_model,
                 place_on_ground=settings.place_on_ground,
@@ -185,8 +190,16 @@ class MINE2BLEND_OT_import_litematic(bpy.types.Operator):
                     else None
                 ),
             )
+            if replacement_target is not None:
+                _set_progress(context, "提交同名模型替换", 88)
+                removed, renamed = blender_importer.commit_staged_projection(import_result["collection"], replacement_target)
+                settings.last_cleared_object_count = removed
+                import_result["collection"] = replacement_target
+                import_result["section_counts"] = {renamed.get(name, name): count for name, count in import_result["section_counts"].items()}
             settings.last_import_seconds = time.perf_counter() - import_start
         except blender_importer.ImporterError as exc:
+            if replacement_target is not None:
+                blender_importer.delete_projection_collection(import_collection_name, prefix=settings.collection_prefix)
             _fail(settings, "Blender 导入失败", f"Blender 导入失败：{exc}")
             settings.last_progress_step = "Blender 导入失败"
             settings.last_total_seconds = time.perf_counter() - total_start

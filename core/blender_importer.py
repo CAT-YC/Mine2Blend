@@ -3,7 +3,7 @@ from typing import Dict, Iterable, List, Set
 
 import bpy
 
-from . import material_utils, path_utils
+from . import material_utils, path_utils, surface_utils
 
 
 class ImporterError(Exception):
@@ -227,6 +227,8 @@ def import_obj_file(
         raise ImporterError("只接受 .obj 文件")
 
     snapshot = _snapshot_object_names()
+    existing_collections = set(bpy.data.collections)
+    existing_data = {name: set(getattr(bpy.data, name)) for name in ('meshes', 'materials', 'images')}
     target_collection = _ensure_collection(collection_name, parent_name)
 
     try:
@@ -235,38 +237,49 @@ def import_obj_file(
             forward_axis=forward_axis,
             up_axis=up_axis,
         )
-    except Exception as exc:
-        raise ImporterError(f"调用 OBJ 导入失败：{exc}")
-
-    if "CANCELLED" in result:
-        raise ImporterError("OBJ 导入被 Blender 取消")
-
-    new_objects = _objects_added_since(snapshot)
-    if not new_objects:
-        raise ImporterError("OBJ 导入完成但未生成新对象")
-
-    _move_objects_to_collection(new_objects, target_collection)
-    _apply_layout_adjustments(new_objects, scale_factor, center_model, place_on_ground)
-
-    # 占位空物体要在布局调整之后建，才能跟着模型一起缩放 / 居中 / 贴地
-    placeholder_objects: List = []
-    if entity_placeholders:
+        if "CANCELLED" in result:
+            raise ImporterError("OBJ 导入被 Blender 取消")
+        new_objects = _objects_added_since(snapshot)
+        if not new_objects:
+            raise ImporterError("OBJ 导入完成但未生成新对象")
+        surface = surface_utils.apply_surface_manifest(new_objects, obj_path)
+        _move_objects_to_collection(new_objects, target_collection)
+        _apply_layout_adjustments(new_objects, scale_factor, center_model, place_on_ground)
         placeholder_objects = create_entity_placeholders(
             entity_placeholders, target_collection, new_objects
-        )
-
-    section_counts: Dict[str, int] = {}
-    if split_collections:
-        section_counts = split_objects_into_sections(new_objects, target_collection)
-
-    materials = material_utils.iter_object_materials(new_objects)
-    fixed = material_utils.fix_materials(materials)
+        ) if entity_placeholders else []
+        section_counts = split_objects_into_sections(new_objects, target_collection) if split_collections else {}
+        materials = material_utils.iter_object_materials(new_objects)
+        fixed = material_utils.fix_materials(materials)
+        # 独立布料图随场景保存，重导清转换缓存时不能使旧模型丢失图案。
+        for image in bpy.data.images:
+            if image in existing_data['images'] or image.packed_file:
+                continue
+            filename = bpy.path.basename(image.filepath)
+            if filename.startswith('banner-') and filename.endswith('.png'):
+                image.pack()
+    except Exception as exc:
+        for obj in _objects_added_since(snapshot):
+            bpy.data.objects.remove(obj, do_unlink=True)
+        for name, previous in existing_data.items():
+            collection = getattr(bpy.data, name)
+            for data in list(collection):
+                if data not in previous and data.users == 0:
+                    collection.remove(data)
+        while True:
+            empty = [coll for coll in bpy.data.collections if coll not in existing_collections and not coll.objects and not coll.children]
+            if not empty:
+                break
+            for coll in empty:
+                bpy.data.collections.remove(coll)
+        raise ImporterError("模型或表面数据导入失败：%s" % exc) from exc
 
     return {
         "objects": new_objects,
         "collection": target_collection,
         "materials": materials,
         "fixed": fixed,
+        "surface": surface,
         "section_counts": section_counts,
         "placeholders": placeholder_objects,
         "placeholder_count": len(placeholder_objects),
@@ -277,9 +290,10 @@ def clear_collections_by_prefix(prefix: str = "Mine2Blend") -> int:
     """清空全部：删所有投影子合集（含对象）+ 删空的父合集。返回删除对象数。"""
     clean_prefix = path_utils.safe_stem_from_path(prefix or "Mine2Blend", "Mine2Blend")
     removed = 0
-    for coll in [c for c in bpy.data.collections if c.name.startswith(clean_prefix + "_")]:
+    for name in [c.name for c in bpy.data.collections if c.name.startswith(clean_prefix + "_")]:
         # 上一轮可能已经把它作为子集合连带删掉了
-        if coll.name not in bpy.data.collections:
+        coll = bpy.data.collections.get(name)
+        if coll is None:
             continue
         removed += _remove_collection_tree(coll)
     parent = bpy.data.collections.get(clean_prefix)
@@ -348,6 +362,48 @@ def delete_projection_collection(collection_name: str, prefix: str = "Mine2Blend
         except Exception:
             pass
     return removed
+
+
+def commit_staged_projection(staged_collection, target_collection):
+    """新模型已通过完整导入后提交替换，保留原投影集合 ID。"""
+    if staged_collection == target_collection:
+        raise ImporterError("临时集合不能与待替换集合相同")
+    old_objects = list(target_collection.objects)
+    old_children = list(target_collection.children)
+    new_objects = list(staged_collection.objects)
+    new_children = list(staged_collection.children)
+    linked_objects, linked_children = [], []
+    try:
+        for obj in new_objects:
+            target_collection.objects.link(obj)
+            linked_objects.append(obj)
+        for child in new_children:
+            target_collection.children.link(child)
+            linked_children.append(child)
+    except Exception as exc:
+        for child in linked_children:
+            target_collection.children.unlink(child)
+        for obj in linked_objects:
+            target_collection.objects.unlink(obj)
+        raise ImporterError(f"新模型提交失败，原模型已保留：{exc}") from exc
+
+    removed_count = 0
+    for child in old_children:
+        removed_count += _remove_collection_tree(child)
+    for obj in old_objects:
+        bpy.data.objects.remove(obj, do_unlink=True)
+        removed_count += 1
+    renamed_sections = {}
+    for child in new_children:
+        previous_name = child.name
+        staged_collection.children.unlink(child)
+        if child.name.startswith(staged_collection.name + "_"):
+            child.name = target_collection.name + child.name[len(staged_collection.name):]
+        renamed_sections[previous_name] = child.name
+    for obj in new_objects:
+        staged_collection.objects.unlink(obj)
+    bpy.data.collections.remove(staged_collection)
+    return removed_count, renamed_sections
 
 
 def clear_collection_by_name(collection_name: str) -> int:

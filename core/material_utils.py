@@ -144,6 +144,11 @@ def _base_tint_material_name(name: str) -> str:
 
 def material_category_from_name(name: str) -> str:
     clean_name = str(name or "").lower()
+    base = _base_tint_material_name(clean_name)
+    if base in {"packed_ice", "blue_ice"}:
+        return "opaque"
+    if base.startswith("water_cauldron"):
+        return "translucent" if "__water" in base or "_c_3f76e4" in clean_name else "opaque"
     if any(keyword in clean_name for keyword in _TRANSLUCENT_KEYWORDS):
         return "translucent"
     if any(keyword in clean_name for keyword in _CUTOUT_KEYWORDS):
@@ -153,6 +158,8 @@ def material_category_from_name(name: str) -> str:
 
 def is_diffuse_tint_name(name: str) -> bool:
     clean_name = str(name or "").lower()
+    if clean_name.startswith("water_cauldron") and material_category_from_name(clean_name) == "opaque":
+        return False
     if "_c_" in clean_name:
         return True
     return _base_tint_material_name(clean_name) in _DIFFUSE_TINT_EXACT_NAMES
@@ -392,6 +399,8 @@ def connect_image_alpha_to_principled(materials: Iterable) -> int:
         node_tree = getattr(material, "node_tree", None)
         if node_tree is None:
             continue
+        if getattr(material, "get", lambda key, default: default)("m2b_surface_shader", False):
+            continue
         is_translucent = _is_translucent_material(material)
         for principled in _principled_nodes(material):
             alpha_input = principled.inputs.get("Alpha")
@@ -417,6 +426,8 @@ def connect_image_alpha_to_principled(materials: Iterable) -> int:
                     count += 1
                 continue
 
+            if _find_existing_alpha_multiply(alpha_input) is not None:
+                _remove_alpha_links(node_tree, alpha_input)
             if not alpha_input.is_linked:
                 try:
                     node_tree.links.new(alpha_socket, alpha_input)
@@ -465,6 +476,82 @@ def apply_alpha_modes(materials: Iterable) -> int:
     return count
 
 
+def _surface_node(tree, kind, label):
+    node = next((node for node in tree.nodes if node.label == label), None)
+    if node is None:
+        node = tree.nodes.new(kind)
+        node.label = label
+        node.name = label
+    return node
+
+
+def apply_surface_shaders(materials: Iterable) -> int:
+    """单份几何按正反UV采样；发光图独立发光并参与Alpha联合。"""
+    count = 0
+    for material in materials:
+        if material is None or not material.get('m2b_surface_shader', False) or material.node_tree is None:
+            continue
+        tree = material.node_tree
+        for principled in _principled_nodes(material):
+            socket = _base_color_image_alpha_socket(principled)
+            if socket is None:
+                raise ValueError('表面材质缺少底色图：' + material.name)
+            image = socket.node
+            geometry = _surface_node(tree,'ShaderNodeNewGeometry','M2B Surface Geometry')
+            def uv_map(name):
+                node = _surface_node(tree,'ShaderNodeUVMap','M2B UV '+name)
+                node.uv_map = name
+                return node.outputs['UV']
+            def choose_uv(label,front,back):
+                node = _surface_node(tree,'ShaderNodeMixRGB',label)
+                node.blend_type = 'MIX'
+                tree.links.new(geometry.outputs['Backfacing'],node.inputs[0])
+                tree.links.new(uv_map(front),node.inputs[1])
+                tree.links.new(uv_map(back),node.inputs[2])
+                return node.outputs[0]
+            tree.links.new(choose_uv('M2B Side UV','M2B_FrontUV','M2B_BackUV'),image.inputs['Vector'])
+            emitter = _surface_node(tree,'ShaderNodeTexImage','M2B Emission Image')
+            emitter.image = image.image
+            emitter.interpolation = 'Closest'
+            tree.links.new(choose_uv('M2B Emission Side UV','M2B_EmissionFrontUV','M2B_EmissionBackUV'),emitter.inputs['Vector'])
+            strength = _surface_node(tree,'ShaderNodeAttribute','M2B Emission Attribute')
+            strength.attribute_name = 'M2B_Emission'
+            back_strength = _surface_node(tree,'ShaderNodeAttribute','M2B Back Emission Attribute')
+            back_strength.attribute_name = 'M2B_EmissionBack'
+            side_strength = _surface_node(tree,'ShaderNodeMixRGB','M2B Emission Side Strength')
+            side_strength.blend_type = 'MIX'
+            tree.links.new(geometry.outputs['Backfacing'],side_strength.inputs[0])
+            tree.links.new(strength.outputs['Fac'],side_strength.inputs[1])
+            tree.links.new(back_strength.outputs['Fac'],side_strength.inputs[2])
+            emission_color = _surface_node(tree,'ShaderNodeMixRGB','M2B Emission Color')
+            emission_color.blend_type = 'MULTIPLY'
+            emission_color.inputs[0].default_value = 1
+            tree.links.new(emitter.outputs['Color'],emission_color.inputs[1])
+            tree.links.new(emitter.outputs['Alpha'],emission_color.inputs[2])
+            tree.links.new(emission_color.outputs[0],principled.inputs['Emission Color'])
+            tree.links.new(side_strength.outputs[0],principled.inputs['Emission Strength'])
+            enabled = _surface_node(tree,'ShaderNodeMath','M2B Emission Enabled')
+            enabled.operation = 'GREATER_THAN'
+            enabled.inputs[1].default_value = 0
+            tree.links.new(side_strength.outputs[0],enabled.inputs[0])
+            glow_alpha = _surface_node(tree,'ShaderNodeMath','M2B Emission Alpha')
+            glow_alpha.operation = 'MULTIPLY'
+            tree.links.new(enabled.outputs[0],glow_alpha.inputs[0])
+            tree.links.new(emitter.outputs['Alpha'],glow_alpha.inputs[1])
+            base_alpha = _surface_node(tree,'ShaderNodeMath','M2B Surface Base Alpha')
+            base_alpha.operation = 'MULTIPLY'
+            tree.links.new(image.outputs['Alpha'],base_alpha.inputs[0])
+            base_alpha.inputs[1].default_value = _translucent_alpha(material) if _is_translucent_material(material) else 1
+            union = _surface_node(tree,'ShaderNodeMath','M2B Surface Alpha')
+            union.operation = 'MAXIMUM'
+            union.use_clamp = True
+            tree.links.new(base_alpha.outputs[0],union.inputs[0])
+            tree.links.new(glow_alpha.outputs[0],union.inputs[1])
+            tree.links.new(union.outputs[0],principled.inputs['Alpha'])
+            count += 1
+    return count
+
+
 def fix_materials(materials: Iterable) -> dict:
     material_list = list(materials)
     return {
@@ -473,6 +560,7 @@ def fix_materials(materials: Iterable) -> dict:
         "tint": apply_color_tints(material_list),
         "alpha": connect_image_alpha_to_principled(material_list),
         "alpha_mode": apply_alpha_modes(material_list),
+        "surfaces": apply_surface_shaders(material_list),
     }
 
 
