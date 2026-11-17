@@ -20,6 +20,12 @@ function defaultIsTranslucentBlock(blockId) {
   return DEFAULT_TRANSLUCENT_KEYWORDS.some(kw => name.includes(kw))
 }
 
+function defaultIsCutoutContactBlock(blockId) {
+  if (!blockId || typeof blockId !== 'string') return false
+  const name = blockId.replace('minecraft:', '').split('[')[0]
+  return name === 'iron_bars' || /(^|_)copper_(bars|grate)$/.test(name)
+}
+
 function defaultIsOpaqueContactBlock(blockId) {
   if (!blockId || typeof blockId !== 'string') return false
   const name = blockId.replace('minecraft:', '').split('[')[0]
@@ -326,6 +332,7 @@ function createSubdividedQuad(faceInfo, subRect, originalQuad) {
 
 export function cullTranslucentContactFaces(entries, options = {}) {
   const isTranslucent = options.isTranslucentBlock ?? defaultIsTranslucentBlock
+  const isCutout = options.isCutoutContactBlock ?? defaultIsCutoutContactBlock
   const isOpaque = options.isOpaqueContactBlock ?? defaultIsOpaqueContactBlock
   const sampleOpaque = options.textureAtlas ? createOpaqueContactSampler(options.textureAtlas) : null
 
@@ -366,23 +373,26 @@ export function cullTranslucentContactFaces(entries, options = {}) {
         const resultEntries = []
         replacements.set(item.index, resultEntries)
         const myTranslucent = isTranslucent(item.entry.blockId)
+        // 镂空接触面必须有实际图集才裁切，不能靠名称删除整面。
+        const myCutout = sampleOpaque && isCutout(item.entry.blockId)
 
-        // 普通不透明方块（如石头）的面保留可编辑语义，不在此做几何裁切
-        if (!myTranslucent) {
+        // 普通不透明方块（如石头）的面保留可编辑语义，不在此做几何裁切。
+        // 栏杆/铜格栅的内部接触面与玻璃一样会形成共面自遮挡，需要按实际覆盖裁去。
+        if (!myTranslucent && !myCutout) {
           resultEntries.push(item.entry)
           continue
         }
 
         // 收集所有有效遮挡片（clippers）：
         // 1. 同种透明方块相邻接触：双方均删除重叠区域
-        // 2. 透明方块相邻不透明接触方块：删除透明侧被覆盖区域
+        // 2. 透明或镂空方块相邻实面：按Alpha255删除主体被覆盖区域
         // 3. 不同种透明介质之间：保留双方（不加入 clipper）
-        // 4. 树叶等镂空/非接触方块：不遮挡透明侧（不加入 clipper）
+        // 4. 镂空邻面仅其Alpha255区域成为遮挡片；孔洞和半透明区域保留。
         const clippers = []
         for (const other of otherItems) {
           const otherTranslucent = isTranslucent(other.entry.blockId)
           if (otherTranslucent) {
-            if (other.entry.blockId === item.entry.blockId) {
+            if (myTranslucent && other.entry.blockId === item.entry.blockId) {
               clippers.push(other.info.rect)
             }
           } else {
@@ -401,7 +411,7 @@ export function cullTranslucentContactFaces(entries, options = {}) {
           continue
         }
 
-        // 对透明轴对齐矩形依次做差集
+        // 对接触面的轴对齐矩形依次做差集
         const remainingRects = subtractRectangles(item.info.rect, clippers)
         for (const subRect of remainingRects) {
           const subQuad = createSubdividedQuad(item.info, subRect, item.entry.quad)

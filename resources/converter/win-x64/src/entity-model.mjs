@@ -176,6 +176,7 @@ function buildEntityModelMesh(model, textureId, atlas, anchorMaxY) {
   // 先攒模型空间（像素），最后统一翻转到世界
   const faces = []
   let maxY = anchorMaxY ?? model.anchorMaxY ?? -Infinity
+  const anchored = model.anchorFixed === true && model.anchorMaxY !== undefined
 
   function emitFace(corners, r, mirror) {
     const vertices = [
@@ -186,7 +187,7 @@ function buildEntityModelMesh(model, textureId, atlas, anchorMaxY) {
     ]
     if (mirror) vertices.reverse()
     for (const v of vertices) {
-      if (v.corner[1] > maxY) maxY = v.corner[1]
+      if (!anchored && v.corner[1] > maxY) maxY = v.corner[1]
     }
     faces.push(vertices.map(v => ({ pos: v.corner, uv: [mapU(v.uv[0]), mapV(v.uv[1])] })))
   }

@@ -147,6 +147,8 @@ def material_category_from_name(name: str) -> str:
     base = _base_tint_material_name(clean_name)
     if base in {"packed_ice", "blue_ice"}:
         return "opaque"
+    if base == "entity_end_crystal":
+        return "cutout"
     if base.startswith("water_cauldron"):
         return "translucent" if "__water" in base or "_c_3f76e4" in clean_name else "opaque"
     if any(keyword in clean_name for keyword in _TRANSLUCENT_KEYWORDS):

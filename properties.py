@@ -36,7 +36,7 @@ class Mine2BlendSceneProperties(bpy.types.PropertyGroup):
 
     entity_placeholder_empties: bpy.props.BoolProperty(
         name="无模型实体建空物体占位",
-        description="内置模型库覆盖 102 类实体；少数没覆盖到的（掉落物、末影水晶等）"
+        description="内置模型覆盖画、展示框、末地水晶及多种生物；未覆盖的实体（如掉落物）"
                     "按原坐标建一个空物体标记位置，方便自己放模型。空物体不参与渲染",
         default=True,
     )

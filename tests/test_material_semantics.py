@@ -30,5 +30,9 @@ class MaterialSemantics(unittest.TestCase):
         for name in ['water_cauldron__opaque_c_ffffff', 'water_cauldron_c_ffffff']:
             self.assertFalse(module.is_diffuse_tint_name(name), name)
 
+    def test_end_crystal_uses_texture_cutout(self):
+        for name in ['entity_end_crystal', 'entity_end_crystal.001']:
+            self.assertEqual(module.material_category_from_name(name), 'cutout', name)
+
 if __name__ == '__main__':
     unittest.main()

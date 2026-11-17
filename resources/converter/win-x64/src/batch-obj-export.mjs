@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { getBlockFluidKind, getFluidRenderProperties, isEmptyWallState } from './contained-water.mjs'
+import { makeFrameUV } from './atlas-frame-uv.mjs'
 import { lanternLightingManifest } from './lantern-lighting.mjs'
 import { emissiveManifest, emissiveBlockKey } from './emissive-blocks.mjs'
 import { decorateBlockModel, cleanSurfaces } from './surface-geometry.mjs'
@@ -31,6 +33,7 @@ import {
 } from 'deepslate'
 import { mat4 } from 'gl-matrix'
 import { initEntityModels, createEntityModelMesh, hasEntityModel } from './entity-model.mjs'
+import { createEndCrystalMesh, END_CRYSTAL_ID } from './end-crystal.mjs'
 
 // ─── 配置 ───────────────────────────────────────────────
 const __filename = fileURLToPath(import.meta.url)
@@ -51,7 +54,7 @@ const SKIP_BLOCK_IDS = new Set([
 
 const FLUID_BLOCKS = new Set([
   'minecraft:water', 'minecraft:lava',
-  'minecraft:flowing_water', 'minecraft:flowing_lava',
+  'minecraft:flowing_water', 'minecraft:flowing_lava', 'minecraft:bubble_column',
 ])
 
 // Minecraft 水贴图本身接近灰白，游戏里靠 tint 上色；OBJ/MTL 需要显式带默认水色。
@@ -71,7 +74,7 @@ const NON_OPAQUE_KEYWORDS = [
   'redstone', 'repeater', 'comparator', 'tripwire',
   'mushroom', 'fungus', 'nether_sprouts', 'nether_wart', 'roots', 'propagule',
   'snow_layer', 'snow', 'sculk_vein', 'sculk_sensor', 'amethyst_cluster', 'amethyst_bud',
-  'pointed_dripstone', 'lightning_rod', 'end_rod', 'iron_bars',
+  'pointed_dripstone', 'lightning_rod', 'end_rod', 'iron_bars', 'copper_bars', 'copper_grate',
   'coral', 'sea_pickle', 'turtle_egg', 'frogspawn',
   'campfire', 'soul_campfire', 'brewing_stand', 'bell', 'grindstone',
   'ladder', 'scaffolding', 'web', 'cobweb',
@@ -172,7 +175,7 @@ const BLOCK_ENTITY_PATTERNS = [
 ]
 
 /** 自建几何的实体（不走 vendored 生物模型那套） */
-const BUILTIN_ENTITY_MESHES = new Set(['painting', 'item_frame', 'glow_item_frame'])
+const BUILTIN_ENTITY_MESHES = new Set(['painting', 'item_frame', 'glow_item_frame', 'end_crystal'])
 
 /** 这个实体能不能出真几何（自建的 + vendored 生物模型库里的） */
 function entityHasModel(entityId) {
@@ -582,50 +585,14 @@ function separateGrassBlockOverlayQuads(mesh) {
   }
 }
 
-function fluidKind(blockId) {
-  if (blockId.includes('water')) return 'water'
-  if (blockId.includes('lava')) return 'lava'
-  return null
-}
-
-function isSameFluid(blockId, neighbor) {
-  const kind = fluidKind(blockId)
-  return !!kind && neighbor && fluidKind(neighbor.blockId) === kind
-}
-
-function getRenderPropertiesForBlock(block, posIndex) {
-  const props = block.properties || {}
-  const needsFluidFaces = FLUID_BLOCKS.has(block.blockId)
+function getRenderPropertiesForBlock(block, posIndex, resolveProperties) {
+  const props = getFluidRenderProperties(block, posIndex, resolveProperties)
   const bannerData = isBannerBlockId(block.blockId) ? block.renderData?.banner : undefined
-  if (!needsFluidFaces && !bannerData) return props
-
+  if (!bannerData) return props
   const result = { ...props }
-
-  if (needsFluidFaces) {
-    const [x, y, z] = block.position
-    const faces = {
-      up: posIndex.get(`${x},${y + 1},${z}`),
-      down: posIndex.get(`${x},${y - 1},${z}`),
-      north: posIndex.get(`${x},${y},${z - 1}`),
-      south: posIndex.get(`${x},${y},${z + 1}`),
-      east: posIndex.get(`${x + 1},${y},${z}`),
-      west: posIndex.get(`${x - 1},${y},${z}`),
-    }
-    for (const [face, neighbor] of Object.entries(faces)) {
-      result[`__mcblock_fluid_face_${face}`] = isSameFluid(block.blockId, neighbor) ? 'false' : 'true'
-    }
-    result.__mcblock_fluid_h_nw = formatFluidHeight(getFluidCornerHeight(block, posIndex, [[0, 0], [-1, 0], [0, -1], [-1, -1]]))
-    result.__mcblock_fluid_h_ne = formatFluidHeight(getFluidCornerHeight(block, posIndex, [[0, 0], [1, 0], [0, -1], [1, -1]]))
-    result.__mcblock_fluid_h_se = formatFluidHeight(getFluidCornerHeight(block, posIndex, [[0, 0], [1, 0], [0, 1], [1, 1]]))
-    result.__mcblock_fluid_h_sw = formatFluidHeight(getFluidCornerHeight(block, posIndex, [[0, 0], [-1, 0], [0, 1], [-1, 1]]))
-  }
-
-  if (bannerData) {
-    if (bannerData.baseColor) result[BANNER_BASE_COLOR_PROP] = bannerData.baseColor
-    const patterns = serializeBannerPatterns(bannerData.patterns)
-    if (patterns) result[BANNER_PATTERNS_PROP] = patterns
-  }
-
+  if (bannerData.baseColor) result[BANNER_BASE_COLOR_PROP] = bannerData.baseColor
+  const patterns = serializeBannerPatterns(bannerData.patterns)
+  if (patterns) result[BANNER_PATTERNS_PROP] = patterns
   return result
 }
 
@@ -634,26 +601,6 @@ function getFluidHeight(properties = {}) {
   if (!Number.isFinite(level) || level <= 0) return 8 / 9
   if (level >= 8) return 1
   return Math.max(1 / 9, (8 - level) / 9)
-}
-
-function getFluidCornerHeight(block, posIndex, offsets) {
-  const [x, y, z] = block.position
-  let total = 0
-  let weight = 0
-  for (const [dx, dz] of offsets) {
-    const sample = dx === 0 && dz === 0 ? block : posIndex.get(`${x + dx},${y},${z + dz}`)
-    if (!isSameFluid(block.blockId, sample)) continue
-    if (isSameFluid(block.blockId, posIndex.get(`${x + dx},${y + 1},${z + dz}`))) return 1
-    const height = getFluidHeight(sample?.properties ?? {})
-    const sampleWeight = height >= 0.8 ? 10 : 1
-    total += height * sampleWeight
-    weight += sampleWeight
-  }
-  return weight > 0 ? total / weight : getFluidHeight(block.properties ?? {})
-}
-
-function formatFluidHeight(height) {
-  return Math.max(0, Math.min(1, height)).toFixed(4)
 }
 
 function extractBannerColor(blockId, properties = {}) {
@@ -810,7 +757,7 @@ function parseLitematic(buffer, fileName) {
     const oY = rawSY < 0 ? pY + rawSY + 1 : pY
     const oZ = rawSZ < 0 ? pZ + rawSZ + 1 : pZ
     const bannerRenderDataByWorldPos = collectLitematicBannerRenderData(region, [oX, oY, oZ])
-    allEntities.push(...collectLitematicEntities(region, [pX, pY, pZ]))
+    allEntities.push(...collectProjectionEntities(region, [pX, pY, pZ]))
 
     const paletteList = region.getList('BlockStatePalette', 10)
     const palette = []
@@ -946,10 +893,11 @@ function parseSchem(buffer, fileName) {
   // 注意：deepslate 的 NbtByteArray.getItems() 返回的是 NbtByte 对象数组，必须逐个 getAsNumber() 取裸字节
   let paletteTag
   let dataItems
+  let blocksContainer
   if (root.has('Blocks')) {
-    const blocks = root.getCompound('Blocks')
-    paletteTag = blocks.getCompound('Palette')
-    dataItems = blocks.getByteArray('Data').getItems().map((b) => b.getAsNumber())
+    blocksContainer = root.getCompound('Blocks')
+    paletteTag = blocksContainer.getCompound('Palette')
+    dataItems = blocksContainer.getByteArray('Data').getItems().map((b) => b.getAsNumber())
   } else {
     paletteTag = root.getCompound('Palette')
     dataItems = root.getByteArray('BlockData').getItems().map((b) => b.getAsNumber())
@@ -983,10 +931,15 @@ function parseSchem(buffer, fileName) {
     gMaxX = Math.max(gMaxX, x); gMaxY = Math.max(gMaxY, y); gMaxZ = Math.max(gMaxZ, z)
   }
 
+  const entities = collectSchemEndCrystals(root, blocksContainer, [width, height, length])
+
   // 归一化到紧致包围盒（与 litematic 一致，保证 Blender 居中/贴地正确）
   if (allBlocks.length > 0) {
     for (const b of allBlocks) {
       b.position[0] -= gMinX; b.position[1] -= gMinY; b.position[2] -= gMinZ
+    }
+    for (const entity of entities) {
+      entity.pos[0] -= gMinX; entity.pos[1] -= gMinY; entity.pos[2] -= gMinZ
     }
   }
 
@@ -997,6 +950,7 @@ function parseSchem(buffer, fileName) {
       ? [gMaxX - gMinX + 1, gMaxY - gMinY + 1, gMaxZ - gMinZ + 1]
       : [0, 0, 0],
     blocks: allBlocks,
+    entities,
     totalBlockCount: allBlocks.length,
   }
 }
@@ -1080,14 +1034,10 @@ async function loadMcResources() {
   const uvMap = {}
   for (const [texId, uvRect] of Object.entries(atlasUvData)) {
     const rect = uvRect
-    const frameW = rect[2]
-    const frameH = Math.min(rect[3], rect[2])
-    const uv = [
-      rect[0] / atlasW,
-      rect[1] / atlasH,
-      (rect[0] + frameW) / atlasW,
-      (rect[1] + frameH) / atlasH,
-    ]
+    // 仅保护方块序列帧；实体子贴图和静态Alpha裁切继续使用原生边界。
+    const uv = /^(?:minecraft:)?block\//.test(texId) && rect[3] > rect[2]
+      ? makeFrameUV(rect, atlasW, atlasH)
+      : [rect[0]/atlasW, rect[1]/atlasH, (rect[0]+rect[2])/atlasW, (rect[1]+Math.min(rect[3],rect[2]))/atlasH]
     const fullId = texId.includes(':') ? texId : `minecraft:${texId}`
     uvMap[fullId] = uv
   }
@@ -1145,7 +1095,7 @@ function createFallbackMesh() {
 
 function createFluidMesh(blockId, properties = {}, resources = null) {
   const quads = []
-  const isWater = blockId.includes('water')
+  const isWater = blockId.includes('water') || blockId === 'minecraft:bubble_column'
   const color = isWater ? WATER_TINT_RGB : [0.9, 0.5, 0.1]
   const h = getFluidHeight(properties)
   const hNW = readFluidCornerHeight(properties, '__mcblock_fluid_h_nw', h)
@@ -1562,7 +1512,7 @@ function readEntityNumberList(compound, key, length) {
 }
 
 /**
- * 解析 Region 的 Entities 列表。
+ * 解析投影的 Entities 列表。
  *
  * 🔴 字段大小写在不同实体间不一致（painting 用 `facing`、item_frame 用 `Facing`），
  * 且 `id` 可以整个不存在，一律按候选键 + 标签形状兜底。
@@ -1572,7 +1522,7 @@ function readEntityNumberList(compound, key, length) {
  * 的 origin。Size 为负时两者能差出整个区域的长度 —— 因为 Position.x 常常是 0，
  * 这个 bug 会表现成「x 对、y 和 z 跑到负数去」。所以这里加的是 `Position` 原值。
  */
-function collectLitematicEntities(region, regionPosition) {
+function collectProjectionEntities(region, regionPosition, crystalsOnly = false) {
   const [rpX, rpY, rpZ] = regionPosition
   const out = []
   for (const listKey of ['Entities', 'entities']) {
@@ -1582,16 +1532,30 @@ function collectLitematicEntities(region, regionPosition) {
     for (let i = 0; i < list.length; i++) {
       let entity
       try { entity = list.getCompound(i) } catch { continue }
-      const rawId = readNbtPrimitive(entity, ['id', 'Id'])
-      const id = typeof rawId === 'string' ? normalizeBlockId(rawId) : ''
-      const pos = readEntityNumberList(entity, 'Pos', 3)
-      if (!pos) continue
+      const dataTag = entity.get('Data')
+      const data = dataTag?.isCompound() ? dataTag : entity
+      const idKeys = ['id', 'Id', 'entity_id', 'EntityId']
+      const rawId = readNbtPrimitive(entity, idKeys) ?? readNbtPrimitive(data, idKeys)
+      let id = typeof rawId === 'string' ? normalizeBlockId(rawId) : ''
+      if (id === 'minecraft:endercrystal' || id === 'minecraft:ender_crystal') id = END_CRYSTAL_ID
+      if (crystalsOnly && id !== END_CRYSTAL_ID) continue
+
+      const pos = id === END_CRYSTAL_ID
+        ? readNbtTuple(entity.get('Pos') ?? entity.get('pos') ?? data.get('Pos') ?? data.get('pos'))
+        : readEntityNumberList(entity, 'Pos', 3)
+      if (!pos || !pos.every(Number.isFinite)) continue
       const rotation = readEntityNumberList(entity, 'Rotation', 2) ?? [0, 0]
       const record = {
         id: id || 'minecraft:unknown',
         pos: [pos[0] + rpX, pos[1] + rpY, pos[2] + rpZ],
         yaw: rotation[0],
         pitch: rotation[1],
+      }
+      if (id === END_CRYSTAL_ID) {
+        const keys = ['ShowBottom', 'show_bottom']
+        const value = readNbtPrimitive(data, keys) ?? readNbtPrimitive(entity, keys)
+        record.showBottom = typeof value === 'number' ? value !== 0
+          : !['false', '0'].includes(value?.trim().toLowerCase())
       }
       const facing = readEntityNumber(entity, ['facing', 'Facing'])
       if (facing !== undefined) record.facing = facing
@@ -1615,6 +1579,24 @@ function collectLitematicEntities(region, regionPosition) {
     }
   }
   return out
+}
+
+function collectSchemEndCrystals(root, blocksContainer, size) {
+  // Sponge v3 的位置以外层 Pos 为准，Data 可能残留采集时的绝对位置。
+  const origin = [0, 0, 0]
+  const entities = collectProjectionEntities(root, origin, true)
+  if (blocksContainer) entities.push(...collectProjectionEntities(blocksContainer, origin, true))
+  const offset = readNbtTuple(root.get('Offset')) ?? origin
+  const isInside = pos => pos.every((axis, i) => axis >= -2 && axis <= size[i] + 2)
+  for (const entity of entities) {
+    if (!isInside(entity.pos)) {
+      const shifted = entity.pos.map((axis, i) => axis - offset[i])
+      if (isInside(shifted)) entity.pos = shifted
+    }
+    // Studio 使用完整选区坐标计算相位，须在紧致包围盒平移之前保存。
+    entity.crystalPhase = entity.pos[0] + entity.pos[2] * 0.37
+  }
+  return entities
 }
 
 /**
@@ -1723,6 +1705,7 @@ function createArmorStandMesh(entity, atlas) {
  * 生物走这条路，由调用方登记到 metadata 让 Blender 侧建空物体占位。
  */
 function createProjectionEntityMesh(entity, atlas) {
+  if (entity.id === END_CRYSTAL_ID) return createEndCrystalMesh(entity, atlas)
   const bare = entity.id.replace('minecraft:', '')
   let built = null
 
@@ -1785,6 +1768,11 @@ function createEntityFallbackMesh(blockId, properties = {}, atlas = null, banner
 }
 
 function buildGeometry(model, resources, options = {}) {
+  const propertyCache = new WeakMap()
+  const resolveProperties = block => {
+    if (!propertyCache.has(block)) propertyCache.set(block,fillDefaultProperties(block.properties ?? {}, resources.defaultBlockProperties.get(BLOCK_DEF_ALIASES[block.blockId] ?? block.blockId)))
+    return propertyCache.get(block)
+  }
   const { blockDefinitions, blockModels, atlas, defaultBlockProperties } = resources
   const preserveAdjacentFaces = Boolean(options.preserveAdjacentFaces)
   const sections = new Set(options.sections ?? ALL_SECTIONS)
@@ -1794,6 +1782,12 @@ function buildGeometry(model, resources, options = {}) {
   const posIndex = new Map()
   for (const block of model.blocks) {
     posIndex.set(`${block.position[0]},${block.position[1]},${block.position[2]}`, block)
+  }
+
+  // 分区隐藏的邻格不能继续剔除本次导出的流体外表面。
+  const fluidPosIndex = sections.has(SECTION_BLOCKS) && sections.has(SECTION_BLOCK_ENTITIES) ? posIndex : new Map()
+  if (fluidPosIndex !== posIndex) for (const [key, neighbor] of posIndex) {
+    if (sections.has(isBlockEntityId(neighbor.blockId) ? SECTION_BLOCK_ENTITIES : SECTION_BLOCKS)) fluidPosIndex.set(key,neighbor)
   }
 
   const useOcclusion = !preserveAdjacentFaces && model.totalBlockCount > 5000
@@ -1822,7 +1816,7 @@ function buildGeometry(model, resources, options = {}) {
     const blockId = block.blockId
     const section = isBlockEntityId(blockId) ? SECTION_BLOCK_ENTITIES : SECTION_BLOCKS
     if (section === SECTION_BLOCKS ? !wantBlocks : !wantBlockEntities) continue
-    const rawProps = getRenderPropertiesForBlock(block, posIndex)
+    const rawProps = getRenderPropertiesForBlock(block, fluidPosIndex, resolveProperties)
     const props = fillDefaultProperties(rawProps, defaultBlockProperties.get(blockId))
 
     let mesh
@@ -1862,12 +1856,27 @@ function buildGeometry(model, resources, options = {}) {
     if (mesh.quads.length === 0) {
       const entityMesh = createEntityFallbackMesh(blockId, props, atlas, resources.bannerTextures)
       if (entityMesh) mesh = entityMesh
-      else continue
+      else if (!(isEmptyWallState(blockId,props) && props.waterlogged === 'true')) continue
     }
 
     const biomeTint = getBiomeTintColor(blockId)
     if (biomeTint) applyBiomeTint(mesh, biomeTint)
     if (blockId === 'minecraft:grass_block') separateGrassBlockOverlayQuads(mesh)
+
+    // 主体着色完成后补独立水材质；不把植物或木材染成水色。
+    if (!FLUID_BLOCKS.has(blockId) && getBlockFluidKind(blockId, props) === 'water') {
+      const water = createFluidMesh('minecraft:water', {...props, level:'0'}, resources)
+      for (const quad of water.quads) {
+        quad.m2bContainedWater = true
+        // 同格水侧面内收，避免与实体主体共面闪烁。
+        for (const vertex of quad.vertices()) {
+          vertex.pos.x -= (vertex.normal?.x ?? 0) * 0.0001
+          vertex.pos.y += vertex.normal?.y < 0 ? 0.0001 : 0
+          vertex.pos.z -= (vertex.normal?.z ?? 0) * 0.0001
+        }
+      }
+      mesh.quads.push(...water.quads)
+    }
 
     const translation = mat4.create()
     mat4.translate(translation, translation, [x, y, z])
@@ -1875,7 +1884,7 @@ function buildGeometry(model, resources, options = {}) {
     mesh.computeNormals()
 
     for (const quad of mesh.quads) {
-      allQuads.push({ quad, blockId, section, position: block.position })
+      allQuads.push({ quad, blockId:quad.m2bContainedWater||blockId==='minecraft:bubble_column'?'minecraft:water':blockId, section, position: block.position })
     }
   }
 
@@ -2115,7 +2124,7 @@ async function processLitematic(litematicPath, outputDir, resources, sharedAtlas
     return false
   }
 
-  if (model.blocks.length === 0) {
+  if (model.blocks.length === 0 && !model.entities?.some(entity => entity.id === END_CRYSTAL_ID)) {
     console.log(`  ⊘ 空模型，跳过`)
     return false
   }
