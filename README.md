@@ -2,7 +2,7 @@
 
 > 把《我的世界》投影一键导入 Blender 的玩家工具
 
-![version](https://img.shields.io/badge/version-0.5.11%20beta-orange)
+![version](https://img.shields.io/badge/version-0.5.12%20beta-orange)
 ![blender](https://img.shields.io/badge/Blender-4.2%20LTS%2B-f5792a)
 ![platform](https://img.shields.io/badge/platform-Windows%2010%2F11%20x64-0078d6)
 ![license](https://img.shields.io/badge/license-GPL--3.0--or--later-blue)
@@ -11,7 +11,7 @@
 
 插件内置一套离线转换器，**无需手动安装 Node.js、也不依赖任何在线服务或服务器**——选中投影文件即可在本机完成转换并导入。
 
-> ⚠️ 当前为 **0.5.11 内测版**，仅提供 Windows 10 / 11 x64 运行时，欢迎在 Issues 反馈问题。
+> ⚠️ 当前为 **0.5.12 内测版**，仅提供 Windows 10 / 11 x64 运行时，欢迎在 Issues 反馈问题。
 
 ![Mine2Blend 导入演示](assets/demo-import.gif)
 
@@ -211,3 +211,11 @@ Windows 10/11 x64；最低声明Blender4.2。本次实际验证环境为Blender5
 Windows x64 完整安装包：[Mine2Blend.zip](https://github.com/CAT-YC/Mine2Blend/releases/download/v0.5.11/Mine2Blend.zip)。网站下载的 `Mine2Blend-0.5.11.zip` 与该附件字节一致。
 
 升级后请重启 Blender 并重新导入投影；已有 `.blend` 不会自动重建，手动修改过的工程请先另存副本。当前实际验证为 Blender 5.1.2/Cycles；最低声明为 Blender 4.2 LTS，4.2 与 EEVEE 尚待验证。
+
+## 0.5.12 发布
+
+- 修复了 Blender 4.5.9 导入含营火的投影时出现的发光表面校验错误。
+- 已在 Blender 4.5.9 LTS 和 5.1.2 验证普通营火与灵魂营火的点燃和熄灭状态。点燃时保留各自的自发光，熄灭时不自发光。
+- 升级后请重启 Blender 并重新导入投影。
+
+下载 Windows x64 完整安装包 Mine2Blend.zip，也可从 [MCBlock 官网](https://mcblock.top/blender) 下载。

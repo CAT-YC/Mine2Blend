@@ -116,13 +116,19 @@ def apply_surface_manifest(objects, obj_path):
         mesh = obj.data
         values = array('f', [0.0]) * (len(mesh.loops)*2)
         mesh.uv_layers.active.data.foreach_get('uv',values)
-        layers = []
         for name in UV_NAMES:
-            layer = mesh.uv_layers.get(name) or mesh.uv_layers.new(name=name)
+            if mesh.uv_layers.get(name) is None:
+                mesh.uv_layers.new(name=name)
+        for name in ('M2B_Emission', 'M2B_EmissionBack'):
+            if mesh.attributes.get(name) is None:
+                mesh.attributes.new(name=name, type='FLOAT', domain='CORNER')
+
+        # Blender 4.5 新建图层时可能使此前取得的图层引用失效。
+        layers = [mesh.uv_layers[name] for name in UV_NAMES]
+        for layer in layers:
             layer.data.foreach_set('uv',values)
-            layers.append(layer)
-        emission = mesh.attributes.get('M2B_Emission') or mesh.attributes.new(name='M2B_Emission',type='FLOAT',domain='CORNER')
-        emission_back = mesh.attributes.get('M2B_EmissionBack') or mesh.attributes.new(name='M2B_EmissionBack',type='FLOAT',domain='CORNER')
+        emission = mesh.attributes['M2B_Emission']
+        emission_back = mesh.attributes['M2B_EmissionBack']
         for index, data in assignments:
             for layer,offset in zip(layers,(3,5,7,9)):
                 layer.data[index].uv = data[offset:offset+2]
